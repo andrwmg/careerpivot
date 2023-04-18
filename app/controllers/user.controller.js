@@ -17,7 +17,6 @@ exports.register = async (req, res, err) => {
 
     try {
         const existingUser = await User.find({ username: username })
-        console.log(existingUser.length)
         if (existingUser.length) {
             res.send({ message: 'Username or email are already taken', messageStatus: 'error' });
             return;
@@ -149,7 +148,6 @@ exports.login = async (req, res, err) => {
         if (!isValidPassword) {
             return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
         }
-        console.log(user)
         if (!user.isVerified) {
             return res.send({ message: 'Account not verified', messageStatus: 'error' });
         }
@@ -230,7 +228,6 @@ exports.forgot = async (req, res, err) => {
 
 exports.setToken = async (req, res) => {
     const { token } = req.params
-    console.log(req.params)
 
     try {
         const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
@@ -250,8 +247,6 @@ exports.setToken = async (req, res) => {
 exports.reset = async (req, res) => {
     const { token } = req.session
     const { password, confirm } = req.body
-
-    console.log(token, password)
 
     try {
         if (password !== confirm) {
@@ -346,9 +341,7 @@ exports.logout = (req, res, err) => {
         // if (!req.session) {
         //     res.send({ message: 'No user logged in', messageStatus: 'error' })
         // } else {
-        console.log('Before: ', req.session.user)
         req.session.destroy();
-        console.log('After: ', req.session)
         res.send({ message: 'Successfully logged out', messageStatus: 'success' })
         // }
     } catch (err) {
