@@ -27,7 +27,6 @@ router.put('/updateUser/:id', users.updateUser)
 router.put('/messages/:fromId/:toId', isLoggedIn, users.sendMessage)
 
 router.post('/upload',upload.array('images'),(req,res)=>{
-    console.log(req.files.map(img => ({ filename: img.filename, url: img.path })))
     res.send(req.files.map(img => ({ filename: img.filename, url: img.path })))
   })
 
