@@ -46,10 +46,6 @@ const UserSchema = new Schema({
     verificationToken: String,
     inbox: [MessageSchema],
     outbox: [MessageSchema]
-    // favorites: [{
-    //     type: Schema.Types.ObjectId,
-    //     ref: 'Listing'
-    //  }]
 }, { timestamps: true }
 )
 

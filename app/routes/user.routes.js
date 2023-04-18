@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router({ mergeParams: true });
-const { isLoggedIn, isLoggedInTwo } = require('../../middleware');
+const { isLoggedIn } = require('../../middleware');
 const users = require('../controllers/user.controller');
 const multer = require('multer')
 const {storage} = require('../cloudinary');
