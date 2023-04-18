@@ -26,11 +26,11 @@ router.put('/updateUser/:id', users.updateUser)
 
 router.put('/messages/:fromId/:toId', isLoggedIn, users.sendMessage)
 
-// router.post('/login', passport.authenticate('local'), users.login)
+router.post('/upload',upload.array('images'),(req,res)=>{
+    console.log(req.files.map(img => ({ filename: img.filename, url: img.path })))
+    res.send(req.files.map(img => ({ filename: img.filename, url: img.path })))
+  })
 
-// // Retrieve all published Tutorials
 router.get('/logout', users.logout)
-
-// app.use('/api/users', router);
 
 module.exports = router
