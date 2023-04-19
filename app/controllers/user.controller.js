@@ -158,6 +158,7 @@ exports.resend = async (req, res, err) => {
         }
 
         const token = user.generateVerificationToken()
+        user.verificationToken = token
 
         // const transporter = nodemailer.createTransport({
         //     host: 'smtp.sendgrid.net',
