@@ -143,15 +143,15 @@ exports.verify = async (req, res, err) => {
 }
 
 exports.resend = async (req, res, err) => {
-    const { username, password } = req.body
+    const { email, password } = req.body
     try {
-        const user = await User.findOne({ username })
+        const user = await User.findOne({ email })
         if (!user) {
-            return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+            return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
         }
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-            return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+            return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
         }
         if (user.isVerified) {
             return res.send({ message: 'Account is already verified', messageStatus: 'error' });
@@ -203,7 +203,9 @@ exports.login = async (req, res, err) => {
         }
         req.session.user = user
 
-        res.send({ user, message: 'Welcome back to CareerPivot!', messageStatus: 'success' })
+        console.log(req, res)
+
+        res.send({ token: req.session.cookie, user, message: 'Welcome back to CareerPivot!', messageStatus: 'success' })
 
     } catch (err) {
         res.send({ message: 'Login failed', messageStatus: 'error' });
