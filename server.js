@@ -10,14 +10,6 @@ require('dotenv').config()
 
 const app = express()
 
-app.use((req, res, next) => {
-    if (req.header('x-forwarded-proto') !== 'https') {
-      res.redirect(`https://${req.header('host')}${req.url}`);
-    } else {
-      next();
-    }
-  });
-
 const db = require("./app/models/index.js");
 
 db.mongoose
@@ -91,6 +83,14 @@ const userRoutes = require("./app/routes/user.routes");
 
 app.use('/data', userRoutes)
 
+// app.use((req, res, next) => {
+//     if (req.header('x-forwarded-proto') !== 'https') {
+//       res.redirect(`https://${req.header('host')}${req.url}`);
+//     } else {
+//       next();
+//     }
+//   });
+
 app.get('/api', (req,res) => {
     res.json({
       message: 'This is the api endpoint'
@@ -100,9 +100,6 @@ app.get('/api', (req,res) => {
   app.get('/*', cors(corsOptions), (req,res,next) => {
     res.sendFile(path.join(__dirname, 'build','index.html'))
   })
-  
-  
-  
   
   // set port, listen for requests
   const PORT = process.env.PORT || 7070;
