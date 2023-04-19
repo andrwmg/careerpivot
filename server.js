@@ -10,6 +10,13 @@ require('dotenv').config()
 
 const app = express()
 
+app.use((req, res, next) => {
+    if (!req.secure && req.get('x-forwarded-proto') !== 'https') {
+        return res.redirect('https://' + req.get('host') + req.url);
+      }
+      next();
+  });
+
 const db = require("./app/models/index.js");
 
 db.mongoose
@@ -82,14 +89,6 @@ app.options('*', cors())
 const userRoutes = require("./app/routes/user.routes");
 
 app.use('/data', userRoutes)
-
-// app.use((req, res, next) => {
-//     if (req.header('x-forwarded-proto') !== 'https') {
-//       res.redirect(`https://${req.header('host')}${req.url}`);
-//     } else {
-//       next();
-//     }
-//   });
 
 app.get('/api', (req,res) => {
     res.json({
