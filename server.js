@@ -6,9 +6,17 @@ const cors = require('cors')
 const methodOverride = require('method-override')
 const MongoStore = require("connect-mongo")
 const cookieParser = require('cookie-parser');
-require('dotenv').config()
+require('dotenv').config() 
 
 const app = express()
+
+app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      res.redirect(`https://${req.header('host')}${req.url}`);
+    } else {
+      next();
+    }
+  });
 
 const db = require("./app/models/index.js");
 
