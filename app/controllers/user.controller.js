@@ -6,15 +6,6 @@ const sgMail = require('@sendgrid/mail');
 const bcrypt = require('bcrypt')
 const mailjet = require('node-mailjet').connect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY)
 
-// const request = mailjet
-// .post("send", {'version': 'v3.1'})
-
-
-// const mailjet = new Mailjet({
-//     apiKey: process.env.MAILJET_API_KEY,
-//     apiSecret: process.env.MAILJET_SECRET_KEY
-//   });
-
 async function sendVerificationEmail(userEmail, verificationToken, type) {
 
     const baseURL = process.env.LOCAL ? `http://localhost:7071` : 'https://www.careerpivot.io'
@@ -64,7 +55,10 @@ const sgPassword = process.env.SENDGRID_PASSWORD
 sgMail.setApiKey(sgAPI)
 
 exports.register = async (req, res, err) => {
-    const { email, username, password, image } = req.body
+    let { email, username } = req.body
+    const { password, image } = req.body
+    email = email.toLowerCase()
+    username = username.toLowerCase()
 
     try {
         const existingUser = await User.find({ $or: [{ username }, { email }] })
@@ -84,29 +78,6 @@ exports.register = async (req, res, err) => {
             req.session.token = token
             sendVerificationEmail(email, token, 'verify')
             res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
-            // const transporter = nodemailer.createTransport({
-            //     host: sgSMTP,
-            //     port: 587,
-            //     auth: {
-            //         user: sgUser,
-            //         password: sgPassword
-            //     }
-            // })
-
-            // const mailOptions = {
-            //     to: user.email,
-            //     from: sgUser,
-            //     subject: 'Tesla Mart Account Verification Token',
-            //     text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
-            // }
-
-            // sgMail.send(mailOptions, (error, result) => {
-            //     if (error) {
-            //         res.status(500).json({ message: 'Failed to send verification email', messageStatus: 'error' })
-            //     } else {
-            //         res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
-            //     }
-            // })
         }
     }
     catch (e) {
@@ -143,7 +114,11 @@ exports.verify = async (req, res, err) => {
 }
 
 exports.resend = async (req, res, err) => {
-    const { email, password } = req.body
+    let { email } = req.body
+    const { password } = req.body
+    email = email.toLowerCase()
+    username = username.toLowerCase()
+
     try {
         const user = await User.findOne({ email })
         if (!user) {
@@ -160,21 +135,6 @@ exports.resend = async (req, res, err) => {
         const token = user.generateVerificationToken()
 
         user.save()
-        // const transporter = nodemailer.createTransport({
-        //     host: 'smtp.sendgrid.net',
-        //     port: 587,
-        //     auth: {
-        //         user: sgUser,
-        //         password: sgPassword
-        //     }
-        // })
-
-        // const mailOptions = {
-        //     to: user.email,
-        //     from: sgUser,
-        //     subject: 'Tesla Mart Account Verification Token',
-        //     text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
-        // }
 
         sendVerificationEmail(email, token, 'verify')
         res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
@@ -189,7 +149,11 @@ exports.resend = async (req, res, err) => {
 }
 
 exports.login = async (req, res, err) => {
-    const { email, username, password } = req.body
+    let { email, username } = req.body
+    const { password } = req.body
+    email = email.toLowerCase()
+    username = username.toLowerCase()
+
     try {
         const user = await User.findOne({ $or: [{ username }, { email }] });
         if (!user) {
@@ -235,7 +199,8 @@ exports.getUser = async (req, res, err) => {
 }
 
 exports.forgot = async (req, res, err) => {
-    const { email } = req.body
+    let { email } = req.body
+    email = email.toLowerCase()
 
     try {
         const user = await User.findOne({ email })
