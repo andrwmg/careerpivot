@@ -10,7 +10,7 @@ async function sendVerificationEmail(userEmail, verificationToken, type) {
 
     const baseURL = process.env.LOCAL ? `http://localhost:7071` : 'https://www.careerpivot.io'
 
-     const request = mailjet
+    const request = mailjet
         .post('send', { version: 'v3.1' })
         .request({
             Messages: [
@@ -57,8 +57,10 @@ sgMail.setApiKey(sgAPI)
 exports.register = async (req, res, err) => {
     let { email, username } = req.body
     const { password, image } = req.body
-    email = email.toLowerCase()
-    username = username.toLowerCase()
+    if (email && username) {
+        email = email.toLowerCase()
+        username = username.toLowerCase()
+    }
 
     try {
         const existingUser = await User.find({ $or: [{ username }, { email }] })
@@ -116,8 +118,9 @@ exports.verify = async (req, res, err) => {
 exports.resend = async (req, res, err) => {
     let { email } = req.body
     const { password } = req.body
-    email = email.toLowerCase()
-    username = username.toLowerCase()
+    if (email) {
+        email = email.toLowerCase()
+    }
 
     try {
         const user = await User.findOne({ email })
@@ -131,7 +134,7 @@ exports.resend = async (req, res, err) => {
         if (user.isVerified) {
             return res.send({ message: 'Account is already verified', messageStatus: 'error' });
         }
-        
+
         const token = user.generateVerificationToken()
 
         user.save()
@@ -151,8 +154,12 @@ exports.resend = async (req, res, err) => {
 exports.login = async (req, res, err) => {
     let { email, username } = req.body
     const { password } = req.body
-    email = email.toLowerCase()
-    username = username.toLowerCase()
+    if (email) {
+        email = email.toLowerCase()
+    }
+    if (username) {
+        username = username.toLowerCase()
+    }
 
     try {
         const user = await User.findOne({ $or: [{ username }, { email }] });
@@ -200,7 +207,9 @@ exports.getUser = async (req, res, err) => {
 
 exports.forgot = async (req, res, err) => {
     let { email } = req.body
-    email = email.toLowerCase()
+    if (email) {
+        email = email.toLowerCase()
+    }
 
     try {
         const user = await User.findOne({ email })
