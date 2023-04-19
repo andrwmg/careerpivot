@@ -12,7 +12,7 @@ router.post('/login', users.login)
 
 router.post('/getUser', isLoggedIn, users.getUser)
 
-router.post('/verify', users.verify)
+router.get('/verify/:token', users.verify)
 
 router.post('/resend', users.resend)
 

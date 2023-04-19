@@ -4,6 +4,57 @@ const User = db.users
 const nodemailer = require('nodemailer')
 const sgMail = require('@sendgrid/mail');
 const bcrypt = require('bcrypt')
+const mailjet = require('node-mailjet').connect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY)
+
+// const request = mailjet
+// .post("send", {'version': 'v3.1'})
+
+
+// const mailjet = new Mailjet({
+//     apiKey: process.env.MAILJET_API_KEY,
+//     apiSecret: process.env.MAILJET_SECRET_KEY
+//   });
+
+async function sendVerificationEmail(userEmail, verificationToken, type) {
+
+    const baseURL = process.env.LOCAL ? `http://localhost:7071` : 'https://www.careerpivot.io'
+
+     const request = mailjet
+        .post('send', { version: 'v3.1' })
+        .request({
+            Messages: [
+                {
+                    From: {
+                        Email: process.env.MAILJET_EMAIL,
+                        Name: 'Andrew'
+                    },
+                    To: [
+                        {
+                            Email: userEmail
+                        }
+                    ],
+                    Subject: type === 'verify' ? 'Account Verification' : 'Reset Password',
+                    HTMLPart: type === 'verify' ?
+                        `<h3>Hello,</h3>
+            <p>Thank you for registering for CareerPivot! To verify your account, please click on the following link:</p>
+            <p><a href="${baseURL}/verify/${verificationToken}">Verify Account</a></p>
+            <p>If you did not create an account on our service, please disregard this email.</p>`
+                        :
+                        `<h3>Hello,</h3>
+            <p>Thank you for taking steps to get back onto CareerPivot! To reset your password, please click on the following link:</p>
+            <p><a href="${baseURL}/reset/${verificationToken}">Reset Password</a></p>
+            <p>If you did not create an account on our service, please disregard this email.</p>`
+                }
+            ]
+        })
+    request
+        .then((result) => {
+            console.log(result.body)
+        })
+        .catch((err) => {
+            console.log(err.statusCode)
+        })
+}
 
 const sgAPI = process.env.SENDGRID_API_KEY
 const sgSMTP = process.env.SENDGRID_SMTP
@@ -16,7 +67,7 @@ exports.register = async (req, res, err) => {
     const { email, username, password, image } = req.body
 
     try {
-        const existingUser = await User.find({ username: username })
+        const existingUser = await User.find({ $or: [{ username }, { email }] })
         if (existingUser.length) {
             res.send({ message: 'Username or email are already taken', messageStatus: 'error' });
             return;
@@ -30,30 +81,32 @@ exports.register = async (req, res, err) => {
             user.password = hash;
 
             user.save()
+            req.session.token = token
+            sendVerificationEmail(email, token, 'verify')
+            res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
+            // const transporter = nodemailer.createTransport({
+            //     host: sgSMTP,
+            //     port: 587,
+            //     auth: {
+            //         user: sgUser,
+            //         password: sgPassword
+            //     }
+            // })
 
-            const transporter = nodemailer.createTransport({
-                host: sgSMTP,
-                port: 587,
-                auth: {
-                    user: sgUser,
-                    password: sgPassword
-                }
-            })
+            // const mailOptions = {
+            //     to: user.email,
+            //     from: sgUser,
+            //     subject: 'Tesla Mart Account Verification Token',
+            //     text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
+            // }
 
-            const mailOptions = {
-                to: user.email,
-                from: sgUser,
-                subject: 'Tesla Mart Account Verification Token',
-                text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
-            }
-
-            sgMail.send(mailOptions, (error, result) => {
-                if (error) {
-                    res.status(500).json({ message: 'Failed to send verification email', messageStatus: 'error' })
-                } else {
-                    res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
-                }
-            })
+            // sgMail.send(mailOptions, (error, result) => {
+            //     if (error) {
+            //         res.status(500).json({ message: 'Failed to send verification email', messageStatus: 'error' })
+            //     } else {
+            //         res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
+            //     }
+            // })
         }
     }
     catch (e) {
@@ -66,7 +119,9 @@ exports.register = async (req, res, err) => {
 }
 
 exports.verify = async (req, res, err) => {
-    const { token } = req.body
+    const { token } = req.params
+    console.log(token)
+
     if (!token) {
         res.send({ message: 'Invalid verification token', messageStatus: 'error' });
     } else {
@@ -104,30 +159,25 @@ exports.resend = async (req, res, err) => {
 
         const token = user.generateVerificationToken()
 
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.sendgrid.net',
-            port: 587,
-            auth: {
-                user: sgUser,
-                password: sgPassword
-            }
-        })
+        // const transporter = nodemailer.createTransport({
+        //     host: 'smtp.sendgrid.net',
+        //     port: 587,
+        //     auth: {
+        //         user: sgUser,
+        //         password: sgPassword
+        //     }
+        // })
 
-        const mailOptions = {
-            to: user.email,
-            from: sgUser,
-            subject: 'Tesla Mart Account Verification Token',
-            text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
-        }
+        // const mailOptions = {
+        //     to: user.email,
+        //     from: sgUser,
+        //     subject: 'Tesla Mart Account Verification Token',
+        //     text: `Please verify your new Tesla Mart account by clicking the link: \nhttp:\/\/localhost:7071\/verify\/${token}\n`
+        // }
 
-        sgMail.send(mailOptions, (error, result) => {
-            if (error) {
-                res.status(500).json({ message: 'Failed to resend verification email', messageStatus: 'error' })
-            } else {
-                res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
-            }
+        sendVerificationEmail(email, token, 'verify')
+        res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
 
-        })
     } catch (e) {
         if (e.message.includes('E11000')) {
             res.send({ message: 'Failed to register user', messageStatus: 'error' })
@@ -196,29 +246,32 @@ exports.forgot = async (req, res, err) => {
 
             user.save()
 
-            const transporter = nodemailer.createTransport({
-                host: 'smtp.sendgrid.net',
-                port: 587,
-                auth: {
-                    user: sgUser,
-                    password: sgPassword
-                }
-            })
+            // const transporter = nodemailer.createTransport({
+            //     host: 'smtp.sendgrid.net',
+            //     port: 587,
+            //     auth: {
+            //         user: sgUser,
+            //         password: sgPassword
+            //     }
+            // })
 
-            const mailOptions = {
-                to: user.email,
-                from: sgUser,
-                subject: 'Tesla Mart Reset Password Token',
-                text: `Please reset your Tesla Mart account password by clicking the link: \nhttp:\/\/localhost:7071\/reset\/${token}\n`
-            }
+            // const mailOptions = {
+            //     to: user.email,
+            //     from: sgUser,
+            //     subject: 'Tesla Mart Reset Password Token',
+            //     text: `Please reset your Tesla Mart account password by clicking the link: \nhttp:\/\/localhost:7071\/reset\/${token}\n`
+            // }
 
-            sgMail.send(mailOptions, (error, result) => {
-                if (error) {
-                    res.status(500).json({ message: 'Failed to send reset password email', messageStatus: 'error' })
-                } else {
-                    res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
-                }
-            })
+            // sgMail.send(mailOptions, (error, result) => {
+            //     if (error) {
+            //         res.status(500).json({ message: 'Failed to send reset password email', messageStatus: 'error' })
+            //     } else {
+            //         res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
+            //     }
+            // })
+
+            sendVerificationEmail(email, token, 'reset')
+            res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
         }
     } catch (err) {
         console.log(err)
