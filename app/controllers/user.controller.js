@@ -73,6 +73,8 @@ exports.register = async (req, res, err) => {
             return;
         } else {
 
+            user.verificationToken
+
             const user = new User({ email, username, image: image[0] })
             const token = user.generateVerificationToken();
 
@@ -157,8 +159,10 @@ exports.resend = async (req, res, err) => {
             return res.send({ message: 'Account is already verified', messageStatus: 'error' });
         }
 
+        console.log(user._id)
+
         const token = user.generateVerificationToken()
-        user.verificationToken = token
+        User.findOneAndUpdate({email}, {verificationToken: token})
 
         // const transporter = nodemailer.createTransport({
         //     host: 'smtp.sendgrid.net',
