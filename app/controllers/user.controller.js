@@ -26,7 +26,7 @@ async function sendVerificationEmail(userEmail, verificationToken, type) {
                 {
                     From: {
                         Email: process.env.MAILJET_EMAIL,
-                        Name: 'Andrew'
+                        Name: 'Andrew at CareerPivot'
                     },
                     To: [
                         {
@@ -72,8 +72,6 @@ exports.register = async (req, res, err) => {
             res.send({ message: 'Username or email are already taken', messageStatus: 'error' });
             return;
         } else {
-
-            user.verificationToken
 
             const user = new User({ email, username, image: image[0] })
             const token = user.generateVerificationToken();
@@ -158,12 +156,10 @@ exports.resend = async (req, res, err) => {
         if (user.isVerified) {
             return res.send({ message: 'Account is already verified', messageStatus: 'error' });
         }
-
-        console.log(user._id)
-
+        
         const token = user.generateVerificationToken()
-        User.findOneAndUpdate({email}, {verificationToken: token})
 
+        user.save()
         // const transporter = nodemailer.createTransport({
         //     host: 'smtp.sendgrid.net',
         //     port: 587,
