@@ -55,286 +55,510 @@ const sgPassword = process.env.SENDGRID_PASSWORD
 sgMail.setApiKey(sgAPI)
 
 exports.register = async (req, res, err) => {
-    let { email, username } = req.body
-    const { password, image } = req.body
-    if (email && username) {
-        email = email.toLowerCase()
-        username = username.toLowerCase()
-    }
-
     try {
-        const existingUser = await User.find({ $or: [{ username }, { email }] })
-        if (existingUser.length) {
-            res.send({ message: 'Username or email are already taken', messageStatus: 'error' });
-            return;
-        } else {
-
-            const user = new User({ email, username, image: image[0] })
-            const token = user.generateVerificationToken();
-
-            const salt = await bcrypt.genSalt(10);
-            const hash = await bcrypt.hash(password, salt);
-            user.password = hash;
-
-            user.save()
-            req.session.token = token
-            sendVerificationEmail(email, token, 'verify')
-            res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
-        }
-    }
-    catch (e) {
-        if (e.message.includes('E11000')) {
-            res.send({ message: 'Failed to register user', messageStatus: 'error' })
-        } else {
-            res.send({ message: e.message, messageStatus: 'error' });
-        }
-    }
-}
-
-exports.verify = async (req, res, err) => {
-    const { token } = req.params
-    console.log(token)
-
-    if (!token) {
-        res.send({ message: 'Invalid verification token', messageStatus: 'error' });
-    } else {
-        try {
-            await User.findOneAndUpdate({ verificationToken: token }, { isVerified: true, verificationToken: null })
-                .then(data => {
-                    if (!data) {
-                        res.send({ message: 'Invalid verification token', messageStatus: 'error' });
-                    } else {
-                        res.send({ message: 'Account verified', messageStatus: 'success' });
-                    }
-                })
-        }
-        catch (err) {
-            console.log(err)
-            res.send({ message: 'Failed to verify account', messageStatus: 'error' });
-        }
-    }
-}
-
-exports.resend = async (req, res, err) => {
-    let { email } = req.body
-    const { password } = req.body
-    if (email) {
-        email = email.toLowerCase()
-    }
-
-    try {
-        const user = await User.findOne({ email })
-        if (!user) {
-            return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
-        }
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
-            return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
-        }
-        if (user.isVerified) {
-            return res.send({ message: 'Account is already verified', messageStatus: 'error' });
+        let { email, username } = req.body
+        let username_lower
+        const { password, image } = req.body
+        if (email && username) {
+            email = email.toLowerCase()
+            username_lower = username.toLowerCase()
         }
 
-        const token = user.generateVerificationToken()
+        const existingUser = await User.findOne({ $or: [{ username_lower }, { email }] })
+        if (existingUser) {
+            res.status(400).json({ message: 'Username or email are already taken', messageStatus: 'error' });
+            return
+        }
+
+        const user = new User({ email, username, image })
+        user.generateVerificationToken();
+        user.generateLower()
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        user.password = hash;
 
         user.save()
 
-        sendVerificationEmail(email, token, 'verify')
+        sendVerificationEmail(user.email, user.verificationToken, 'verify')
+
+        res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
+    }
+    catch (e) {
+        if (e.message.includes('E11000')) {
+            res.status(400).send({ message: 'Failed to register user', messageStatus: 'error' })
+        } else {
+            res.status(400).send({ message: e.message, messageStatus: 'error' });
+        }
+    }
+}
+
+
+// exports.register = async (req, res, err) => {
+//     let { email, username } = req.body
+//     const { password, image } = req.body
+//     if (email && username) {
+//         email = email.toLowerCase()
+//         username = username.toLowerCase()
+//     }
+
+//     try {
+//         const existingUser = await User.find({ $or: [{ username }, { email }] })
+//         if (existingUser.length) {
+//             res.send({ message: 'Username or email are already taken', messageStatus: 'error' });
+//             return;
+//         } else {
+
+//             const user = new User({ email, username, image: image[0] })
+//             const token = user.generateVerificationToken();
+
+//             const salt = await bcrypt.genSalt(10);
+//             const hash = await bcrypt.hash(password, salt);
+//             user.password = hash;
+
+//             user.save()
+//             req.session.token = token
+//             sendVerificationEmail(user.email, user.verificationToken, 'verify')
+//             res.status(200).json({ message: 'Verification email sent', messageStatus: 'success' })
+//         }
+//     }
+//     catch (e) {
+//         if (e.message.includes('E11000')) {
+//             res.send({ message: 'Failed to register user', messageStatus: 'error' })
+//         } else {
+//             res.send({ message: e.message, messageStatus: 'error' });
+//         }
+//     }
+// }
+
+exports.verify = async (req, res, err) => {
+    try {
+        const { token } = req.params
+
+        await User.findOneAndUpdate({ verificationToken: token }, { isVerified: true, verificationToken: null })
+            .then(data => {
+                if (!data) {
+                    res.status(404).send({ message: 'Invalid verification token', messageStatus: 'error' });
+                } else {
+                    res.status(200).send({ message: 'Account verified', messageStatus: 'success' });
+                }
+            })
+    }
+    catch (err) {
+        console.log(err)
+        res.status(400).send({ message: 'Failed to verify account', messageStatus: 'error' });
+    }
+}
+
+// exports.verify = async (req, res, err) => {
+//     const { token } = req.params
+//     console.log(token)
+
+//     if (!token) {
+//         res.send({ message: 'Invalid verification token', messageStatus: 'error' });
+//     } else {
+//         try {
+//             await User.findOneAndUpdate({ verificationToken: token }, { isVerified: true, verificationToken: null })
+//                 .then(data => {
+//                     if (!data) {
+//                         res.send({ message: 'Invalid verification token', messageStatus: 'error' });
+//                     } else {
+//                         res.send({ message: 'Account verified', messageStatus: 'success' });
+//                     }
+//                 })
+//         }
+//         catch (err) {
+//             console.log(err)
+//             res.send({ message: 'Failed to verify account', messageStatus: 'error' });
+//         }
+//     }
+// }
+
+exports.resend = async (req, res, err) => {
+    try {
+        let { email } = req.body
+        const { password } = req.body
+        if (email) {
+            email = email.toLowerCase()
+        }
+
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(404).send({ message: 'Invalid email or password', messageStatus: 'error' });
+        }
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.status(404).send({ message: 'Invalid email or password', messageStatus: 'error' });
+        }
+        if (user.isVerified) {
+            return res.status(400).send({ message: 'Account is already verified', messageStatus: 'error' });
+        }
+
+        user.generateVerificationToken()
+
+        user.save()
+
+        sendVerificationEmail(user.email, user.verificationToken, 'verify')
+
         res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
 
     } catch (e) {
         if (e.message.includes('E11000')) {
-            res.send({ message: 'Failed to register user', messageStatus: 'error' })
+            res.status(400).send({ message: 'Failed to register user', messageStatus: 'error' })
         } else {
-            res.send({ message: e.message, messageStatus: 'error' });
+            res.status(400).send({ message: e.message, messageStatus: 'error' });
         }
     }
 }
 
-exports.login = async (req, res, err) => {
-    let { email, username } = req.body
-    const { password } = req.body
-    if (email) {
-        email = email.toLowerCase()
-    }
-    if (username) {
-        username = username.toLowerCase()
-    }
+// exports.resend = async (req, res, err) => {
+//     let { email } = req.body
+//     const { password } = req.body
+//     if (email) {
+//         email = email.toLowerCase()
+//     }
 
+//     try {
+//         const user = await User.findOne({ email })
+//         if (!user) {
+//             return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
+//         }
+//         const isValidPassword = await bcrypt.compare(password, user.password);
+//         if (!isValidPassword) {
+//             return res.send({ message: 'Invalid email or password', messageStatus: 'error' });
+//         }
+//         if (user.isVerified) {
+//             return res.send({ message: 'Account is already verified', messageStatus: 'error' });
+//         }
+
+//         const token = user.generateVerificationToken()
+
+//         user.save()
+
+//         sendVerificationEmail(email, token, 'verify')
+//         res.status(200).json({ message: 'Verification email resent', messageStatus: 'success' })
+
+//     } catch (e) {
+//         if (e.message.includes('E11000')) {
+//             res.send({ message: 'Failed to register user', messageStatus: 'error' })
+//         } else {
+//             res.send({ message: e.message, messageStatus: 'error' });
+//         }
+//     }
+// }
+
+exports.login = async (req, res, err) => {
     try {
-        const user = await User.findOne({ $or: [{ username }, { email }] });
+        let { email } = req.body
+        const { password } = req.body
+        if (email) {
+            email = email.toLowerCase()
+        }
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+            return res.status(404).send({ message: 'Invalid email or password', messageStatus: 'error' });
         }
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-            return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+            return res.status(404).send({ message: 'Invalid email or password', messageStatus: 'error' });
         }
         if (!user.isVerified) {
-            return res.send({ message: 'Account not verified', messageStatus: 'error' });
+            return res.status(401).send({ message: 'Account not verified', messageStatus: 'error' });
         }
         req.session.user = user
 
-        console.log(user)
-
-        res.send({ token: req.session.cookie, user, message: 'Welcome back to CareerPivot!', messageStatus: 'success' })
+        res.status(200).send({ token: req.session.cookie, user, message: 'Welcome back to Career Pivot!', messageStatus: 'success' })
 
     } catch (err) {
-        res.send({ message: 'Login failed', messageStatus: 'error' });
+        res.status(400).send({ message: 'Login failed', messageStatus: 'error' });
     }
 }
 
+// exports.login = async (req, res, err) => {
+//     let { email, username } = req.body
+//     const { password } = req.body
+//     if (email) {
+//         email = email.toLowerCase()
+//     }
+//     if (username) {
+//         username = username.toLowerCase()
+//     }
+
+//     try {
+//         const user = await User.findOne({ $or: [{ username }, { email }] });
+//         if (!user) {
+//             return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+//         }
+//         const isValidPassword = await bcrypt.compare(password, user.password);
+//         if (!isValidPassword) {
+//             return res.send({ message: 'Invalid username or password', messageStatus: 'error' });
+//         }
+//         if (!user.isVerified) {
+//             return res.send({ message: 'Account not verified', messageStatus: 'error' });
+//         }
+//         req.session.user = user
+
+//         console.log(user)
+
+//         res.send({ token: req.session.cookie, user, message: 'Welcome back to CareerPivot!', messageStatus: 'success' })
+
+//     } catch (err) {
+//         res.send({ message: 'Login failed', messageStatus: 'error' });
+//     }
+// }
 
 exports.getUser = async (req, res, err) => {
-    const { id } = req.body
-    if (req.session.user && req.session.user._id === id) {
-        const user = await User.findById(req.session.user._id)
-            .populate({
-                path: 'inbox',
-                populate: [
-                    { path: 'to' }, { path: 'from' }
-                ]
-            })
-            .populate({
-                path: 'outbox',
-                populate: [
-                    { path: 'to' }, { path: 'from' }
-                ]
-            })
-        res.send(user)
+    try {
+        const { id } = req.body
+        if (req.session.user && req.session.user._id === id) {
+            const user = await User.findById(req.session.user._id)
+                .populate({
+                    path: 'inbox',
+                    populate: [
+                        { path: 'to' }, { path: 'from' }
+                    ]
+                })
+                .populate({
+                    path: 'outbox',
+                    populate: [
+                        { path: 'to' }, { path: 'from' }
+                    ]
+                })
+            res.status(200).send(user)
+        }
+    } catch (err) {
+        res.status(400).send({ message: 'Could not find user', messageStatus: 'error' });
     }
 }
 
-exports.forgot = async (req, res, err) => {
-    let { email } = req.body
-    if (email) {
-        email = email.toLowerCase()
-    }
+// exports.getUser = async (req, res, err) => {
+//     const { id } = req.body
+//     if (req.session.user && req.session.user._id === id) {
+//         const user = await User.findById(req.session.user._id)
+//             .populate({
+//                 path: 'inbox',
+//                 populate: [
+//                     { path: 'to' }, { path: 'from' }
+//                 ]
+//             })
+//             .populate({
+//                 path: 'outbox',
+//                 populate: [
+//                     { path: 'to' }, { path: 'from' }
+//                 ]
+//             })
+//         res.send(user)
+//     }
+// }
 
+exports.forgot = async (req, res, err) => {
     try {
+
+        let { email } = req.body
+
+        if (email) {
+            email = email.toLowerCase()
+        }
         const user = await User.findOne({ email })
         if (!user) {
 
-            res.send({ message: 'Could not find account with that username', messageStatus: 'error' })
+            res.status(400).send({ message: 'Could not find account with that username', messageStatus: 'error' })
 
         } else {
 
-            const token = user.generateResetToken()
+            console.log(user)
+            user.generateResetToken()
 
             user.save()
 
-            // const transporter = nodemailer.createTransport({
-            //     host: 'smtp.sendgrid.net',
-            //     port: 587,
-            //     auth: {
-            //         user: sgUser,
-            //         password: sgPassword
-            //     }
-            // })
+            sendVerificationEmail(user.email, user.resetPasswordToken, 'reset')
 
-            // const mailOptions = {
-            //     to: user.email,
-            //     from: sgUser,
-            //     subject: 'Tesla Mart Reset Password Token',
-            //     text: `Please reset your Tesla Mart account password by clicking the link: \nhttp:\/\/localhost:7071\/reset\/${token}\n`
-            // }
+            res.status(200).json({ message: 'Reset token resent', messageStatus: 'success' })
 
-            // sgMail.send(mailOptions, (error, result) => {
-            //     if (error) {
-            //         res.status(500).json({ message: 'Failed to send reset password email', messageStatus: 'error' })
-            //     } else {
-            //         res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
-            //     }
-            // })
-
-            sendVerificationEmail(email, token, 'reset')
-            res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
         }
     } catch (err) {
         console.log(err)
-        res.send({ message: 'Failed to send reset password email', messageStatus: 'error' });
+        res.status(400).send({ message: 'Failed to send reset password email', messageStatus: 'error' });
     }
 }
 
+// exports.forgot = async (req, res, err) => {
+//     let { email } = req.body
+//     if (email) {
+//         email = email.toLowerCase()
+//     }
+
+//     try {
+//         const user = await User.findOne({ email })
+//         if (!user) {
+
+//             res.send({ message: 'Could not find account with that username', messageStatus: 'error' })
+
+//         } else {
+
+//             const token = user.generateResetToken()
+
+//             user.save()
+
+//             sendVerificationEmail(email, token, 'reset')
+//             res.status(200).json({ message: 'Reset password email has been sent', messageStatus: 'success' })
+//         }
+//     } catch (err) {
+//         console.log(err)
+//         res.send({ message: 'Failed to send reset password email', messageStatus: 'error' });
+//     }
+// }
+
 exports.setToken = async (req, res) => {
-    const { token } = req.params
+    try {
+        const { token } = req.params
+
+        const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+        if (!user) {
+            res.status(400).send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
+        } else {
+            req.session.token = token
+            res.status(200).send({ message: 'Token accepted. Reset password now', messageStatus: 'success' })
+        }
+    }
+    catch (err) {
+        console.log(err)
+        return res.status(400).send({ message: 'Failed to reset password', messageStatus: 'error' });
+    }
+}
+
+// exports.setToken = async (req, res) => {
+//     const { token } = req.params
+
+//     try {
+//         const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+//         if (!user) {
+//             return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
+//         } else {
+//             req.session.token = token
+//             res.send({ message: 'Token accepted. Reset password now', messageStatus: 'success' })
+//         }
+//     }
+//     catch (err) {
+//         console.log(err)
+//         return res.send({ message: 'Failed to reset password', messageStatus: 'error' });
+//     }
+// }
+
+exports.reset = async (req, res) => {
+    const { token } = req.session
+    const { password } = req.body
 
     try {
         const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
         if (!user) {
-            return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
+            return res.status(400).send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
         } else {
-            req.session.token = token
-            res.send({ message: 'Token accepted. Reset password now', messageStatus: 'success' })
-        }
-    }
-    catch (err) {
-        console.log(err)
-        return res.send({ message: 'Failed to reset password', messageStatus: 'error' });
-    }
-}
-
-exports.reset = async (req, res) => {
-    const { token } = req.session
-    const { password, confirm } = req.body
-
-    try {
-        if (password !== confirm) {
-            return res.send({ message: 'Passwords do not match. Try again', messageStatus: 'error' });
-
-        } else {
-            const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
-            if (!user) {
-                return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
-            } else {
-                const saltRounds = 10;
-
-                bcrypt.genSalt(saltRounds, (err, salt) => {
-                    if (err) {
-                        return next(err);
-                    } else { }
-                    bcrypt.hash(password, salt, (err, hash) => {
-                        if (err) {
-                            console.log(err)
-                            return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
-                        }
-                        user.password = hash;
-                        user.resetPasswordToken = null;
-                        user.resetPasswordExpires = null;
-                        req.session.token = null
-                        user.save()
-                        return res.send({ message: 'Password reset successful', messageStatus: 'success' });
-
-                    })
+            const saltRounds = 10;
+            bcrypt.genSalt(saltRounds, (err, salt) => {
+                if (err) {
+                    return next(err);
+                } else { }
+                bcrypt.hash(password, salt, (err, hash) => {
+                    user.password = hash;
+                    user.resetPasswordToken = null;
+                    user.resetPasswordExpires = null;
+                    user.save()
+                    res.status(200).send({ message: 'Password reset successful', messageStatus: 'success' });
                 })
-            }
+            })
         }
     }
     catch (err) {
         console.log(err)
-        return res.send({ message: 'Failed to reset password', messageStatus: 'error' });
+        return res.status(400).send({ message: 'Failed to reset password', messageStatus: 'error' });
     }
 }
 
+// exports.reset = async (req, res) => {
+//     const { token } = req.session
+//     const { password, confirm } = req.body
+
+//     try {
+//         if (password !== confirm) {
+//             return res.send({ message: 'Passwords do not match. Try again', messageStatus: 'error' });
+
+//         } else {
+//             const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+//             if (!user) {
+//                 return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
+//             } else {
+//                 const saltRounds = 10;
+
+//                 bcrypt.genSalt(saltRounds, (err, salt) => {
+//                     if (err) {
+//                         return next(err);
+//                     } else { }
+//                     bcrypt.hash(password, salt, (err, hash) => {
+//                         if (err) {
+//                             console.log(err)
+//                             return res.send({ message: 'Password reset token is invalid or has expired', messageStatus: 'error' });
+//                         }
+//                         user.password = hash;
+//                         user.resetPasswordToken = null;
+//                         user.resetPasswordExpires = null;
+//                         req.session.token = null
+//                         user.save()
+//                         return res.send({ message: 'Password reset successful', messageStatus: 'success' });
+
+//                     })
+//                 })
+//             }
+//         }
+//     }
+//     catch (err) {
+//         console.log(err)
+//         return res.send({ message: 'Failed to reset password', messageStatus: 'error' });
+//     }
+// }
 
 exports.updateUser = async (req, res) => {
-    const { id } = req.params
-    const { _id } = req.session.user
-    if (id !== _id) {
-        res.status(500).send({
-            message: "Error updating Profile with id=" + id, messageStatus: 'error'
-        })
-    } else {
-        const user = await User.findByIdAndUpdate(id, req.body, { returnOriginal: false, new: true })
-        if (!user) {
-            res.status(404).send({
-                message: `Cannot update Profile with id=${id}. Maybe User was not found!`, messageStatus: 'error'
-            });
+    try {
+        const { id } = req.params
+        const { _id } = req.session.user
+        if (id !== _id) {
+            res.status(500).send({
+                message: "Error updating Profile with id=" + id, messageStatus: 'error'
+            })
         } else {
-            res.send({ image: req.body.image, message: "Profile was updated successfully.", messageStatus: 'success' });
+            const user = await User.findByIdAndUpdate(id, req.body, { returnOriginal: false, new: true })
+            if (!user) {
+                res.status(404).send({
+                    message: `Cannot update Profile with id=${id}. Maybe User was not found!`, messageStatus: 'error'
+                });
+            } else {
+                res.status(200).send({ image: req.body.image, message: "Profile was updated successfully.", messageStatus: 'success' });
+            }
         }
+    } catch (err) {
+        console.log(err)
+        return res.status(400).send({ message: 'Failed to update profile', messageStatus: 'error' });
     }
 }
+
+// exports.updateUser = async (req, res) => {
+//     const { id } = req.params
+//     const { _id } = req.session.user
+//     if (id !== _id) {
+//         res.status(500).send({
+//             message: "Error updating Profile with id=" + id, messageStatus: 'error'
+//         })
+//     } else {
+//         const user = await User.findByIdAndUpdate(id, req.body, { returnOriginal: false, new: true })
+//         if (!user) {
+//             res.status(404).send({
+//                 message: `Cannot update Profile with id=${id}. Maybe User was not found!`, messageStatus: 'error'
+//             });
+//         } else {
+//             res.send({ image: req.body.image, message: "Profile was updated successfully.", messageStatus: 'success' });
+//         }
+//     }
+// }
 
 exports.sendMessage = async (req, res) => {
     const { fromId, toId } = req.params
@@ -368,13 +592,22 @@ exports.sendMessage = async (req, res) => {
 
 exports.logout = (req, res, err) => {
     try {
-        // if (!req.session) {
-        //     res.send({ message: 'No user logged in', messageStatus: 'error' })
-        // } else {
         req.session.destroy();
-        res.send({ message: 'Successfully logged out', messageStatus: 'success' })
-        // }
+        res.status(200).send({ message: 'Successfully logged out', messageStatus: 'success' })
     } catch (err) {
-        res.send({ message: err.message, messageStatus: 'error' })
+        res.status(400).send({ message: err.message, messageStatus: 'error' })
     }
 }
+
+// exports.logout = (req, res, err) => {
+//     try {
+//         // if (!req.session) {
+//         //     res.send({ message: 'No user logged in', messageStatus: 'error' })
+//         // } else {
+//         req.session.destroy();
+//         res.send({ message: 'Successfully logged out', messageStatus: 'success' })
+//         // }
+//     } catch (err) {
+//         res.send({ message: err.message, messageStatus: 'error' })
+//     }
+// }

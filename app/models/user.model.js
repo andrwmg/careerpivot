@@ -31,6 +31,11 @@ const UserSchema = new Schema({
         required: true,
         unique: true
     },
+    username_lower: {
+        type: String,
+        lowercase: true,
+        unique: true
+    },
     email: {
         type: String,
         required: true,
@@ -48,6 +53,14 @@ const UserSchema = new Schema({
     outbox: [MessageSchema]
 }, { timestamps: true }
 )
+
+UserSchema.methods.generateLower = function() {
+    try {
+        this.username_lower = this.username.toLowerCase()
+    } catch (error) {
+        next(error);
+    }
+}
 
 UserSchema.methods.hashPassword = async function () {
     try {

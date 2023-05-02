@@ -10,12 +10,12 @@ require('dotenv').config()
 
 const app = express()
 
-app.use((req, res, next) => {
-    if (!req.secure && req.get('x-forwarded-proto') !== 'https') {
-        return res.redirect('https://' + req.get('host') + req.url);
-      }
-      next();
-  });
+// app.use((req, res, next) => {
+//     if (!req.secure && req.get('x-forwarded-proto') !== 'https') {
+//         return res.redirect('https://' + req.get('host') + req.url);
+//       }
+//       next();
+//   });
 
 const db = require("./app/models/index.js");
 
