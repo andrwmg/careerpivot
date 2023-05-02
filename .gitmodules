@@ -1,0 +1,3 @@
+[submodule "careerpivotfe"]
+	path = careerpivotfe
+	url = https://github.com/andrwmg/careerpivotfe.git

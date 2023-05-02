@@ -175,7 +175,7 @@ exports.login = async (req, res, err) => {
         }
         req.session.user = user
 
-        console.log(req, res)
+        console.log(user)
 
         res.send({ token: req.session.cookie, user, message: 'Welcome back to CareerPivot!', messageStatus: 'success' })
 
