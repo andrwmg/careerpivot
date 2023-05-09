@@ -87,8 +87,16 @@ app.use(session(sessionConfig))
 app.options('*', cors())
 
 const userRoutes = require("./app/routes/user.routes");
+const postRoutes = require("./app/routes/post.routes");
+const commentRoutes = require("./app/routes/comment.routes");
+const messageRoutes = require("./app/routes/message.routes");
+const communityRoutes = require("./app/routes/community.routes");
 
-app.use('/data', userRoutes)
+app.use('/data/users', userRoutes)
+app.use('/data/posts', postRoutes)
+app.use('/data/posts', commentRoutes)
+app.use('/data/messages', messageRoutes)
+app.use('/data/communities', communityRoutes)
 
 app.get('/api', (req,res) => {
     res.json({

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt')
+// const MessageSchema = require('../models/message.model')
 
 const Schema = mongoose.Schema;
 
@@ -8,21 +9,47 @@ const ImageSchema = new Schema({
     filename: String
 })
 
-const MessageSchema = new Schema({
-    to: {
-        type: Schema.Types.ObjectId,
-        ref: 'User'
+const NotificationSchema = new Schema({
+    body: {
+        type: String,
+        required: true
     },
-    from: {
-        type: Schema.Types.ObjectId,
-        ref: 'User'
+    type: {
+        type: String,
+        enums: ['Message', 'Comment'],
+        required: true
     },
-    body: String,
     read: {
         type: Boolean,
         default: false
     }
-}, { timestamps: true })
+},
+    { timestamps: true })
+
+    const MessageSchema = new Schema({
+        sender: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        recipient: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        body: {
+            type: String,
+            required: true
+        },
+        read: {
+            type: Boolean,
+            default: false
+        },
+        liked: {
+            type: Boolean,
+            default: false
+        },
+    }, { timestamps: true })
 
 const UserSchema = new Schema({
     image: ImageSchema,
@@ -49,12 +76,23 @@ const UserSchema = new Schema({
     resetPasswordToken: String,
     resetPasswordExpires: Date,
     verificationToken: String,
-    inbox: [MessageSchema],
-    outbox: [MessageSchema]
+    messages: [MessageSchema],
+    notifications: [NotificationSchema],
+    // likes: [{
+    //     type: Schema.Types.ObjectId,
+    //     refPath: 'likeType'
+    // }],
+    // likeType: {
+    //     type: String,
+    //     required: true,
+    //     enum: ['Post', 'Comment', 'Message']
+    // },
+    unreadMessages: Number,
+    unreadNotifications: Number,
 }, { timestamps: true }
 )
 
-UserSchema.methods.generateLower = function() {
+UserSchema.methods.generateLower = function () {
     try {
         this.username_lower = this.username.toLowerCase()
     } catch (error) {
@@ -62,9 +100,36 @@ UserSchema.methods.generateLower = function() {
     }
 }
 
+UserSchema.methods.countUnread = function () {
+    console.log('messages', this.messages.length, 'notifications', this.notifications.length)
+
+    try {
+        this.unreadMessages = this.messages.length
+        this.unreadNotifications = this.notifications.length
+    } catch (error) {
+        next(error);
+    }
+}
+
+UserSchema.methods.updateContacts = async function () {
+    try {
+        const uniqueContacts = await this.model('User').aggregate([
+            {$match: { _id: this._id}},
+            {$unwind: '$messages'},
+            {$group: { _id: { $concat: [ "$messages.sender", "-", "$messages.recipient"]}}},
+            { $project: {user: {$split: ["$_id", "-"]}}},
+            { $unwind: "$user"},
+            { $group: {_id: "$user"}}
+        ])
+        this.contacts = uniqueContacts.map(u => u._id)
+    } catch (e) {
+        next(e);
+    }
+}
+
 UserSchema.methods.hashPassword = async function () {
     try {
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(Number(process.env.SALT_COUNT) || 10);
         const hash = await bcrypt.hash(this.password, salt);
         this.password = hash;
     } catch (error) {
@@ -82,15 +147,5 @@ UserSchema.methods.generateResetToken = function () {
     this.resetPasswordExpires = Date.now() + 3600000;
     return this.resetPasswordToken;
 };
-
-UserSchema.post('findOneAndDelete', async function (doc) {
-    if (doc) {
-        await Comment.remove({
-            _id: {
-                $in: doc.comments
-            }
-        })
-    }
-})
 
 module.exports = mongoose.model('User', UserSchema)

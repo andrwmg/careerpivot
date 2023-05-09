@@ -22,9 +22,15 @@ router.get('/reset/:token', users.setToken)
 
 router.post('/reset', users.reset)
 
-router.put('/updateUser/:id', users.updateUser)
+// router.post('/notifications', isLoggedIn, users.notify)
 
-router.put('/messages/:fromId/:toId', isLoggedIn, users.sendMessage)
+// router.put('/notifications/:userId/:notificationId', isLoggedIn, users.updateNotify)
+
+// router.delete('/notifications/:userId/:notificationId', isLoggedIn, users.deleteNotify)
+
+router.put('/:userId', users.updateUser)
+
+// router.put('/messages/:fromId/:toId', isLoggedIn, users.sendMessage)
 
 router.post('/upload',upload.array('images'),(req,res)=>{
     res.send(req.files.map(img => ({ filename: img.filename, url: img.path })))
