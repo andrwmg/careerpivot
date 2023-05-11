@@ -64,7 +64,7 @@ exports.register = async (req, res, err) => {
         const { password, image } = req.body
 
         if (!email || !username || !password) {
-            return res.status(400).send({message: 'Email, username, and password fields are required'})
+            return res.status(400).send({ message: 'Email, username, and password fields are required' })
         }
         email = email.toLowerCase()
         const username_lower = username.toLowerCase()
@@ -123,7 +123,7 @@ exports.resend = async (req, res, err) => {
         const { password } = req.body
 
         if (!email || !password) {
-            return res.status(400).send({message: 'Email and password fields are required'})
+            return res.status(400).send({ message: 'Email and password fields are required' })
         }
 
         email = email.toLowerCase()
@@ -163,12 +163,26 @@ exports.login = async (req, res, err) => {
         const { password } = req.body
 
         if (!email || !password) {
-            return res.status(400).send({message: 'Email and password fields are required'})
+            return res.status(400).send({ message: 'Email and password fields are required' })
         }
 
-            email = email.toLowerCase()
+        email = email.toLowerCase()
         const user = await User.findOne({ email })
             .populate('image')
+            .populate('communities')
+            // .populate('notifications')
+            // .populate({
+            //     path: 'messages',
+            //     populate: [{
+            //       path: 'sender',
+            //       populate: 'user'
+            //     },
+            //     {
+            //         path: 'recipient',
+            //         populate: 'user'
+            //       }]
+            //   })
+            console.log(user)
         if (!user) {
             return res.status(404).send({ message: 'Invalid email or password' });
         }
@@ -183,6 +197,12 @@ exports.login = async (req, res, err) => {
         // user.countUnread()
         // await user.save()
         req.session.user = user
+        
+        res.cookie('sessionToken', req.sessionID, {
+            httpOnly: true,
+            secure: true,
+            maxAge: 24 * 60 * 60 * 1000 // 1 day
+          });
 
         res.status(200).send({ token: req.session.cookie, user, message: 'Welcome back to Career Pivot!' })
 
@@ -218,9 +238,9 @@ exports.forgot = async (req, res, err) => {
 
         let { email } = req.body
         if (!email) {
-            return res.status(400).send({message: 'Email is required'})
+            return res.status(400).send({ message: 'Email is required' })
         }
-            email = email.toLowerCase()
+        email = email.toLowerCase()
         const user = await User.findOne({ email })
         if (!user) {
 
@@ -268,7 +288,7 @@ exports.reset = async (req, res) => {
         const { password, confirm } = req.body
 
         if (!password || !confirm) {
-            return res.status(400).send({message: 'Password and confirm fields are required'})
+            return res.status(400).send({ message: 'Password and confirm fields are required' })
         }
 
         const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });

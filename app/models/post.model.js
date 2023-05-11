@@ -1,19 +1,28 @@
 const mongoose = require('mongoose');
 const Comment = require('./comment.model');
+const User = require('./user.model');
+
 
 // const opts = { toJSON: {virtuals:true}};
 const Schema = mongoose.Schema;
 
-const ImageSchema = new Schema ({
+const ImageSchema = new Schema({
     url: String,
     filename: String
 })
+
+const MetricsSchema = new Schema({
+    user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }
+},{timestamps: true})
 
 // ImageSchema.virtual('thumbnail').get(function(){
 //     return this.url.replace("/upload", "/upload/w_200")
 // })
 
-const PostSchema = new Schema ({
+const PostSchema = new Schema({
     images: [ImageSchema],
     title: {
         type: String,
@@ -28,56 +37,57 @@ const PostSchema = new Schema ({
         required: true
     },
     tags: [{
-            type: String,
+        type: String,
     }],
     author: {
         type: Schema.Types.ObjectId,
         ref: "User"
     },
     comments: [{
-       type: Schema.Types.ObjectId,
-       ref: 'Comment'
+        type: Schema.Types.ObjectId,
+        ref: 'Comment'
     }],
     commentCount: {
         type: Number,
         default: 0
     },
-    likes: [{
-        userId: String,
-        date: Date
-    }],
-     dislikes: [{
-        userId: String,
+    likes: [MetricsSchema],
+    views: [MetricsSchema],
+    dislikes: [{
+        user: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
         date: Date
     }],
     community: {
         type: Schema.Types.ObjectId,
         ref: 'Community'
     }
-},    
-{timestamps: true} 
-// ,opts
+},
+    { timestamps: true }
+    // ,opts
 )
 
-PostSchema.pre('deleteOne', async function(next) {
+PostSchema.pre('deleteOne', async function (next) {
     try {
         console.log('hello!')
-      // Find all comments associated with this comment
-      const comments = await Comment.find({ _id: { $in: this.comments } });
+        // Find all comments associated with this comment
+        const comments = await Comment.find({ _id: { $in: this.comments } });
         console.log(comments)
-      // Delete all comments
-      for (let comment of comments) {
-          await comment.deleteOne()
-      }
-    //   await Comment.deleteMany({ _id: { $in: this.comments } });
-  
-      // Call the next middleware
-      console.log('Deleted Post')
-      next();
+        // Delete all comments
+        for (let comment of comments) {
+            await comment.deleteOne()
+        }
+        //   await Comment.deleteMany({ _id: { $in: this.comments } });
+
+        // Call the next middleware
+        console.log('Deleted Post')
+        next();
     } catch (error) {
-      next(error);
+        next(error);
     }
-  });
+});
 
 // PostSchema.post('findOneAndDelete', async function (doc) {
 //     if (doc) {

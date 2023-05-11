@@ -17,14 +17,18 @@ router.get("/", communities.findSome);
 
 router.get('/users/:userId', communities.findMyCommunites)
 
-router.get("/:postId", communities.findOne);
+router.get('/career/:career', communities.findPopular)
 
-router.put("/:postId", isLoggedIn, isPostAuthor, communities.update);
+router.put('/:communityId/members', communities.join)
 
-router.delete("/:postId", isLoggedIn, communities.delete);
+router.get("/:communityId", communities.findOne);
 
-router.get("/:postId/likes/:userId", communities.like)
+router.put("/:communityId", isLoggedIn, isPostAuthor, communities.update);
 
-router.get("/:postId/dislikes/:userId", communities.dislike)
+router.delete("/:communityId", isLoggedIn, communities.delete);
+
+router.get("/:communityId/likes/:userId", communities.like)
+
+router.get("/:communityId/dislikes/:userId", communities.dislike)
 
 module.exports = router

@@ -1,6 +1,8 @@
 const db = require('../models/index.js')
 const Post = db.posts
 const User = db.users
+const Community = db.communities
+
 // const mbxgeocoding = require('@mapbox/mapbox-sdk/services/geocoding')
 // const mapboxToken = process.env.MAPBOX_TOKEN
 // const geocoder = mbxgeocoding({ accessToken: mapboxToken })
@@ -37,11 +39,14 @@ exports.create = (req, res) => {
       }
     );
     // Save Post in the database
-    newPost
-      .save()
+    newPost.save()
+
+    Community.findByIdAndUpdate({ _id: community }, { $addToSet: { 'posts': newPost._id } })
       .then(data => {
-        res.status(200).send({ data, message: 'Post created successfully' });
+        console.log(data)
       })
+    res.status(200).send({ data: newPost, message: 'Post created successfully' });
+
   } catch (e) {
     res.status(500).send({
       message:
@@ -56,6 +61,12 @@ exports.findAll = (req, res) => {
       .populate('author')
       .populate('images')
       .populate('community')
+      .populate({
+        path: 'likes',
+        populate: {
+          path: 'user'
+        }
+      })
       .then(data => {
         res.send(data)
       })
@@ -68,7 +79,6 @@ exports.findAll = (req, res) => {
 };
 
 exports.findSome = (req, res) => {
-  console.log("HERE!")
 
   const { author, career, tags, community, sort, order } = req.query
   const filter = {}
@@ -98,18 +108,35 @@ exports.findSome = (req, res) => {
     .populate('author')
     .populate('images')
     .populate('community')
+    .populate({
+      path: 'likes',
+      populate: {
+        path: 'user'
+      }
+    })
     .then(data => {
       res.send(data)
     })
 }
 
 exports.findOne = (req, res) => {
-  const {postId} = req.params;
-  console.log("postId = ", postId)
+  const { postId } = req.params;
   Post.findById(postId)
     .populate('author')
     .populate('images')
     .populate('community')
+    .populate({
+      path: 'likes',
+      populate: {
+        path: 'user'
+      }
+    })
+    .populate({
+      path: 'views',
+      populate: {
+        path: 'user'
+      }
+    })
     .populate({
       path: 'comments',
       populate: {
@@ -118,15 +145,12 @@ exports.findOne = (req, res) => {
     })
     .then(data => {
       if (!data) {
-        return res.status(404).send({ message: "Post not found"});
-      } 
-      console.log(data)
-        const userLikes = data.likes.map(l => l.userId)
-        const userDislikes = data.dislikes.map(d => d.userId)
-        data.likes = userLikes
-        data.dislikes = userDislikes
-
-        res.send(data);
+        return res.status(404).send({ message: "Post not found" });
+      }
+      console.log(req.session)
+      data.views.push({user: req.session.user._id})
+      data.save()
+      res.send(data);
     })
     .catch(err => {
       res
@@ -134,6 +158,34 @@ exports.findOne = (req, res) => {
         .send({ message: "Error retreiving post" });
     });
 };
+
+exports.trending = async (req, res) => {
+  const lastWeek = new Date(); // Create a new Date object for 7 days ago
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  const posts = await Post.find()
+    .populate('author')
+    .populate('images')
+    .populate('community')
+    .populate({
+      path: 'likes',
+      populate: {
+        path: 'user'
+      }
+    })
+
+  const filteredPosts = posts.map(post => {
+    const likesFromPastWeek = post.likes.filter(like => {
+      const likeDate = new Date(like.createdAt)
+      return likeDate > lastWeek
+    })
+    post['likesPastWeek'] = likesFromPastWeek
+    return post
+  })
+  const sortedPosts = filteredPosts.sort((post1, post2) => {
+    return post2.likesPastWeek.length - post1.likesPastWeek.length;
+  });
+  res.status(200).send({ data: sortedPosts, message: 'Got trending posts!' })
+}
 
 exports.update = (req, res) => {
   try {
@@ -201,32 +253,36 @@ exports.like = async (req, res) => {
     const { postId, userId } = req.params;
 
     if (!userId) {
-      return res.status(400).send({message: 'Must be logged in to like post'})
+      return res.status(400).send({ message: 'Must be logged in to like post' })
     }
 
     const post = await Post.findById(postId)
-    .populate('likes')
-    .populate('author')
-    const index = post.likes.map(like => like.userId).indexOf(userId)
-    console.log(index)
-    if (index === -1) { 
-      post.likes.push({userId, date: new Date()})
+      .populate({
+        path: 'likes',
+        populate: {
+          path: 'user'
+        }
+      })
+      .populate('author')
+    const index = post.likes.map(like => like.user._id.toString()).indexOf(userId)
+    if (index === -1) {
+      post.likes.push({ user: userId })
       await post.save()
       if (userId !== post.author._id) {
 
         const user = await User.findById(post.author._id)
-  
+
         const notification = { type: 'Like', body: `${req.session.user.username} liked your post.`, from: req.session.user._id }
-  
+
         user.notifications.unshift(notification)
-  
+
         await user.save()
       }
-      return res.status(200).send({message: 'Post liked!'})
+      return res.status(200).send({ message: 'Post liked!' })
     } else {
       post.likes.splice(index, 1)
       await post.save()
-      return res.status(200).send({message: 'Post unliked!'})
+      return res.status(200).send({ message: 'Post unliked!' })
     }
 
   } catch (e) {

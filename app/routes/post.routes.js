@@ -15,6 +15,8 @@ router.post('/upload',upload.array('images'),(req,res)=>{
 
 router.get("/", posts.findSome);
 
+router.get("/trending", posts.trending)
+
 router.get("/:postId", posts.findOne);
 
 router.put("/:postId", isLoggedIn, isPostAuthor, posts.update);

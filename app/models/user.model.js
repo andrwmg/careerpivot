@@ -78,6 +78,14 @@ const UserSchema = new Schema({
     verificationToken: String,
     messages: [MessageSchema],
     notifications: [NotificationSchema],
+    career: {
+        type: String,
+        default: 'Product Design'
+    },
+    communities: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Community'
+    }],
     // likes: [{
     //     type: Schema.Types.ObjectId,
     //     refPath: 'likeType'

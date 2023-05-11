@@ -32,7 +32,7 @@ exports.create = (req, res) => {
                 tags,
                 author,
                 images: images,
-                members: [req.session.user._id]
+                members: [{ user: req.session.user._id, joinedAt: Date.now() }]
                 // comments: [],
                 // likes: [],
                 // dislikes: [],
@@ -87,8 +87,6 @@ exports.findMyCommunites = (req, res) => {
 
 exports.findSome = (req, res) => {
     try {
-        console.log("HERE!")
-
         const { author, career, tags, community, sort, order, user } = req.query
         const filter = {}
         const sortOrder = {}
@@ -125,10 +123,121 @@ exports.findSome = (req, res) => {
     }
 }
 
+exports.join = async (req, res) => {
+    try{
+        const {communityId} = req.params
+        const user = await User.findById(req.session.user._id)
+        .populate('communities')
+        Community.findOne({_id: communityId})
+        .populate({
+            path: 'members',
+            populate: {
+                path: 'user'
+            }
+        })
+        .then(data => {
+            console.log('This is the community: ', data)
+            const index = data.members.map(member => member.user._id.toString()).indexOf(req.session.user._id)
+            if (index === -1) {
+                data.members.push({user: req.session.user._id})
+                user.communities.push(data._id)
+                user.save()
+                data.save()
+            return res.status(200).send({data, message: `Joined ${data.title}`})
+            } else {
+                data.members.splice(index, 1)
+                const filter = user.communities.filter(community => community._id !== data._id)
+                user.communities = filter
+                user.save()
+                data.save()
+            return res.status(200).send({data, message: `Left ${data.title}`})
+            }
+                    })
+    } catch (e){
+        res.status(500).send({ message: "Error updating membership" })
+    }
+}
+
+// exports.findPopular = async (req, res) => {
+//     try {
+//         const { career } = req.params
+//         const communities = await Community.aggregate([
+//             // Unwind the users array to create a separate document for each user
+
+//             { $match: { $or: [ {"users.career": career }, {"members.career": career }]} },
+
+//             { $unwind: '$members' },
+
+//             { $unwind: '$users' },
+
+//             // Match users with a specific career
+//             { $match: { $or: [ {'members.career': career}, {'users.career': career}] } },
+
+//             // Group by community ID and count the number of users
+//             { $group: { _id: { name: "$name", id: "$_id" }, count: { $sum: 1 } } },
+
+//             // Sort by usersCount in descending order
+//             { $sort: { count: -1 } },
+
+//             // Limit to the top 10 communities by usersCount
+//             { $limit: 10 }
+//         ])
+//               console.log(communities);
+//               res.status(200).send({ data: communities, career, message: 'Got the popular communities!' })
+//     } catch (e) {
+//         console.log(e)
+//         res.status(500).send({ message: 'Could not get popular communities' })
+//     }
+// }
+
+exports.findPopular = async (req, res) => {
+    try {
+        const { career } = req.params
+        const communities = await Community.find()
+            .populate({
+                path: 'posts',
+                populate: {
+                    path: 'likes',
+                    populate: {
+                        path: 'user'
+                    }
+                }
+            })
+        for (let community of communities) {
+            let totalLikeCount = 0
+            for (let post of community.posts) {
+                let filteredLikes = post.likes.filter(like => {
+                    return like.user.career === career
+                })
+                //     console.log(like)
+                //     User.findById(like.user)
+                //         .then(data => {
+                //             return data.career === career
+                //         })
+                // })
+                totalLikeCount += filteredLikes.length
+            }
+            community['totalLikeCount'] = totalLikeCount
+        }
+        const sortedCommunities = communities.sort((comm1, comm2) => {
+            if (comm1.likeCount !== comm2.likeCount) {
+                return comm2.totalLikeCount - comm1.totalLikeCount
+            } else {
+                return comm1.title.localeCompare(comm2.title)
+            }
+        });
+        res.status(200).send({ data: sortedCommunities, career, message: 'Got the popular communities!' })
+    } catch (e) {
+        console.log(e)
+        res.status(500).send({ message: 'Could not get popular communities' })
+    }
+}
+
+
 exports.findOne = (req, res) => {
     try {
-        const id = req.params.id;
-        Community.findById(id)
+        const { communityId } = req.params;
+        Community.findById(communityId)
             .populate('author')
             .populate({
                 path: 'posts',
@@ -136,15 +245,17 @@ exports.findOne = (req, res) => {
                     limit: 10
                 }
             })
-            .populate('images')
+            .populate('image')
             .then(data => {
                 if (!data) {
                     res.status(404).send({ message: "Could not find community" });
                 } else {
-                    const userLikes = data.data.likes.map(l => l.userId)
-                    const userDislikes = data.data.dislikes.map(d => d.userId)
-                    data.data.likes = userLikes
-                    data.data.dislikes = userDislikes
+                    for (let post of data.posts) {
+                        const userLikes = post.likes.map(l => l.userId)
+                        const userDislikes = post.dislikes.map(d => d.userId)
+                        post.likes = userLikes
+                        post.dislikes = userDislikes
+                    }
 
                     res.send(data);
                 }
@@ -226,10 +337,9 @@ exports.like = async (req, res) => {
         const post = await Post.findById(postId)
             .populate('likes')
             .populate('author')
-        const index = post.likes.map(like => like.userId).indexOf(userId)
-        console.log(index)
+        const index = post.likes.map(like => like.user._id).indexOf(userId)
         if (index === -1) {
-            post.likes.push({ userId, date: new Date() })
+            post.likes.push({ user: userId })
             await post.save()
             if (userId !== post.author._id) {
 
@@ -299,13 +409,11 @@ exports.delete = async (req, res) => {
                 message: `Cannot delete post with id=${postId}. Maybe post was not found!`
             })
         }
-        console.log(post, 'gotcha')
         post.deleteOne()
         res.status(200).send({
             message: "Post was deleted successfully!"
         })
     } catch (e) {
-        console.log("Oahweghwoeg", e)
         res.status(500).send({
             message: "Could not delete post with id="
         });
