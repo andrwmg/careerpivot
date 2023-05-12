@@ -374,10 +374,10 @@ exports.updateUser = async (req, res) => {
 
         User.findByIdAndUpdate(userId, updatedUser, { new: true })
             .then(user => {
-                if (updatedUser.career) {
-                    //Add user to new career members list
-                    //Remove them from members of old career members lists
-                }
+                // if (updatedUser.career) {
+                //     //Add user to new career members list
+                //     //Remove them from members of old career members lists
+                // }
                 return res.status(200).send({ data: user, message: "Profile was updated successfully." });
             })
     } catch (err) {
