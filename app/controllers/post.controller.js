@@ -23,15 +23,14 @@ const sortByLikeDislikeDifference = (a, b) => {
 
 exports.create = (req, res) => {
   try {
-    const { title, body, career, community, tags, author, images } = req.body
+    const { title, body, career, tags, author, images } = req.body
     const newPost = new Post(
       {
         title,
         body,
         career,
         tags,
-        community,
-        author: author,
+        author: req.session.user._id,
         images: images,
         // comments: [],
         // likes: [],
@@ -41,7 +40,7 @@ exports.create = (req, res) => {
     // Save Post in the database
     newPost.save()
 
-    User.findByIdAndUpdate({ _id: req.session.user._id }, { $addToSet: { posts: newPost._id } })
+    User.findByIdAndUpdate({ _id: req.session.user._id }, { $addToSet: { 'posts': newPost._id } })
       .then(data => {
         console.log(data)
       })
@@ -84,7 +83,7 @@ exports.findAll = (req, res) => {
 
 exports.findSome = (req, res) => {
 
-  const { author, career, tags, community, sort, order } = req.query
+  const {career, sort, order, author, tags, community} = req.params
   const filter = {}
   const sortOrder = {}
   if (sort && order) {
@@ -111,7 +110,6 @@ exports.findSome = (req, res) => {
   Post.find(filter).sort(sortOrder)
     .populate('author')
     .populate('images')
-    .populate('community')
     .populate({
       path: 'likes',
       populate: {
@@ -124,11 +122,12 @@ exports.findSome = (req, res) => {
 }
 
 exports.findOne = (req, res) => {
+  try {
   const { postId } = req.params;
   Post.findById(postId)
     .populate('author')
     .populate('images')
-    .populate('community')
+    .populate('career')
     .populate({
       path: 'likes',
       populate: {
@@ -151,55 +150,57 @@ exports.findOne = (req, res) => {
       if (!data) {
         return res.status(404).send({ message: "Post not found" });
       }
-      console.log(req.session)
       if (req.session.user) {
         data.views.push({ user: req.session.user._id })
         data.save()
-        User.findByIdAndUpdate({ _id: req.session.user._id }, {$push: {$each: [{_id : postId}], $position: 0}})
-          .then(data => {
-            data.views.unshift({ postId })
-          })
+        User.findById({ _id: req.session.user._id })
+        .then(data => {
+          data.views.unshift({post: postId})
+          data.save()
+        })
       }
       res.send(data);
     })
-    .catch(err => {
-      res
-        .status(500)
-        .send({ message: "Error retreiving post" });
-    });
+  } catch(e) {
+      res.status(500).send({ message: "Error retreiving post" });
+    };
 };
 
 exports.trending = async (req, res) => {
   try {
-  const lastWeek = new Date(); // Create a new Date object for 7 days ago
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const posts = await Post.find()
-    .populate('author')
-    .populate('images')
-    .populate('community')
-    .populate({
-      path: 'likes',
-      populate: {
-        path: 'user'
-      }
-    })
+    const {career} = req.params
+    let filter = {}
+    if (career) {
+      filter['career'] = career
+    }
+    const lastWeek = new Date(); // Create a new Date object for 7 days ago
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    console.log(filter)
+    const posts = await Post.find(filter)
+      .populate('author')
+      .populate('images')
+      .populate({
+        path: 'likes',
+        populate: {
+          path: 'user'
+        }
+      })
 
-  const filteredPosts = posts.map(post => {
-    const likesFromPastWeek = post.likes.filter(like => {
-      const likeDate = new Date(like.createdAt)
-      return likeDate > lastWeek
-    })
-    post['likesPastWeek'] = likesFromPastWeek
-    return post
+    const filteredPosts = posts.map(post => {
+      const likesFromPastWeek = post.likes.filter(like => {
+        const likeDate = new Date(like.createdAt)
+        return likeDate > lastWeek
+      })
+      post['likesPastWeek'] = likesFromPastWeek
+      return post
   })
-  const sortedPosts = filteredPosts.sort((post1, post2) => {
-    return post2.likesPastWeek.length - post1.likesPastWeek.length;
-  });
-  res.status(200).send({ data: sortedPosts, message: 'Got trending posts!' })
-} catch(e) {
-  console.log(e)
-  res.status(500).send({message: 'Error loading trending posts'})
-}
+    const sortedPosts = filteredPosts.sort((post1, post2) => {
+      return post2.likesPastWeek.length - post1.likesPastWeek.length;
+    });
+    res.status(200).send({ data: sortedPosts, message: 'Got trending posts!' })
+  } catch (e) {
+    res.status(500).send({ message: 'Error loading trending posts' })
+  }
 }
 
 exports.update = (req, res) => {
@@ -354,7 +355,6 @@ exports.delete = async (req, res) => {
         message: `Cannot delete post with id=${postId}. Maybe post was not found!`
       })
     }
-    console.log(post, 'gotcha')
     post.deleteOne()
     res.status(200).send({
       message: "Post was deleted successfully!"

@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer')
 const sgMail = require('@sendgrid/mail');
 const bcrypt = require('bcrypt')
 const mailjet = require('node-mailjet').connect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY)
+const jwt = require('jsonwebtoken');
 
 const saltRounds = Number(process.env.SALT_ROUNDS) || 10
 
@@ -169,20 +170,6 @@ exports.login = async (req, res, err) => {
         email = email.toLowerCase()
         const user = await User.findOne({ email })
             .populate('image')
-            .populate('communities')
-        // .populate('notifications')
-        // .populate({
-        //     path: 'messages',
-        //     populate: [{
-        //       path: 'sender',
-        //       populate: 'user'
-        //     },
-        //     {
-        //         path: 'recipient',
-        //         populate: 'user'
-        //       }]
-        //   })
-        console.log(user)
         if (!user) {
             return res.status(404).send({ message: 'Invalid email or password' });
         }
@@ -198,15 +185,21 @@ exports.login = async (req, res, err) => {
         // await user.save()
         req.session.user = user
 
-        res.cookie('sessionToken', req.sessionID, {
-            httpOnly: true,
+        const payload = {email: user.email, username: user.username, image: user.image, career: user.career}
+
+        const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '1h' });
+
+        res.cookie('token', token, {
+            httpOnly: false,
             secure: true,
-            maxAge: 24 * 60 * 60 * 1000 // 1 day
         });
 
-        res.status(200).send({ token: req.session.cookie, user, message: 'Welcome back to Career Pivot!' })
+        console.log(req.cookies)
+
+        res.status(200).json({user, message: 'Welcome back to Career Pivot!' })
 
     } catch (err) {
+        console.log(err)
         res.status(400).send({ message: 'Login failed' });
     }
 }
@@ -318,22 +311,79 @@ exports.reset = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
     try {
-        const { id } = req.params
-        const { _id } = req.session.user
-        if (id !== _id) {
-            res.status(500).send({
-                message: "Error updating Profile with id=" + id
-            })
-        } else {
-            const user = await User.findByIdAndUpdate(id, req.body, { returnOriginal: false, new: true })
-            if (!user) {
-                res.status(404).send({
-                    message: `Cannot update Profile with id=${id}. Maybe User was not found!`
-                });
-            } else {
-                res.status(200).send({ image: req.body.image, message: "Profile was updated successfully." });
-            }
-        }
+        const { userId } = req.params
+        const updatedUser = {}
+
+        let { username, email, password, confirm, career, image } = req.body
+
+        let username_lower = username ? username.toLowerCase() : ''
+        email = email ? email.toLowerCase() : null
+
+        const user = await User.findById(userId)
+                if (!user) {
+                    res.status(404).send({ message: 'User not found' })
+                }
+
+                if (career && career !== user.career) {
+                    updatedUser['career'] = career
+                }
+
+                if (email && email !== user.email) {
+                    await User.findOne({ email })
+                        .then(data => {
+                            if (data) {
+                                return res.send({ message: 'Email is already taken' })
+                            } else {
+                                updatedUser['email'] = email
+                            }
+                        })
+                }
+
+                if (username && username_lower !== user.username_lower) {
+                    await User.findOne({ username_lower })
+                        .then(data => {
+                            if (data) {
+                                return res.send({ message: 'Username is already taken' })
+                            } else {
+                                updatedUser['username'] = username
+                                updatedUser['username_lower'] = username_lower
+                            }
+                        })
+                }
+
+                if (password) {
+                    if (password !== confirm) {
+                        return res.send({ message: 'Password and confirmation must match' })
+                    }
+
+                    const compare = await bcrypt.compare(password, user.password)
+                    if (!compare) {
+                        const salt = await bcrypt.genSalt(saltRounds);
+                        const hash = await bcrypt.hash(password, salt);
+                        updatedUser['password'] = hash
+                    }
+                }
+
+                if (image) {
+                    updatedUser['image'] = image
+                }
+
+                // const updatedUser = { career, username, email, password, username_lower }
+
+                User.findByIdAndUpdate(userId, updatedUser, { new: true })
+                    .then(user => {
+                        if (!user) {
+                            res.status(404).send({
+                                message: 'Cannot update profile'
+                            })
+                        } else {
+                            if (updatedUser.career) {
+                                //Add user to new career members list
+                                //Remove them from members of old career members lists
+                            }
+                            res.status(200).send({ data: user, message: "Profile was updated successfully." });
+                        }
+                    })
     } catch (err) {
         console.log(err)
         return res.status(400).send({ message: 'Failed to update profile' });

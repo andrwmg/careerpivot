@@ -57,7 +57,7 @@ app.use(express.static(path.join(__dirname, 'build')));
 
 const dbUrl = process.env.DB_URL || 'mongodb://localhost:27017/careerpivot';
 
-const secret = process.env.SECRET || 'This should be a better secret'
+const secret = process.env.SECRET
 
 const store = MongoStore.create({
   mongoUrl: dbUrl,

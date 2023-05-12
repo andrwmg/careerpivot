@@ -103,8 +103,14 @@ const UserSchema = new Schema({
         }
     }],
     views: [{
+        post: {
         type: Schema.Types.ObjectId,
         ref: 'Post'
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
     }],
     posts: [{
         type: Schema.Types.ObjectId,

@@ -54,10 +54,10 @@ const PostSchema = new Schema({
     likes: [MetricsSchema],
     views: [MetricsSchema],
     dislikes: [MetricsSchema],
-    community: {
-        type: Schema.Types.ObjectId,
-        ref: 'Community'
-    }
+    // community: {
+    //     type: Schema.Types.ObjectId,
+    //     ref: 'Community'
+    // }
 },
     { timestamps: true }
     // ,opts
