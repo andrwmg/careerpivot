@@ -170,19 +170,19 @@ exports.login = async (req, res, err) => {
         const user = await User.findOne({ email })
             .populate('image')
             .populate('communities')
-            // .populate('notifications')
-            // .populate({
-            //     path: 'messages',
-            //     populate: [{
-            //       path: 'sender',
-            //       populate: 'user'
-            //     },
-            //     {
-            //         path: 'recipient',
-            //         populate: 'user'
-            //       }]
-            //   })
-            console.log(user)
+        // .populate('notifications')
+        // .populate({
+        //     path: 'messages',
+        //     populate: [{
+        //       path: 'sender',
+        //       populate: 'user'
+        //     },
+        //     {
+        //         path: 'recipient',
+        //         populate: 'user'
+        //       }]
+        //   })
+        console.log(user)
         if (!user) {
             return res.status(404).send({ message: 'Invalid email or password' });
         }
@@ -197,12 +197,12 @@ exports.login = async (req, res, err) => {
         // user.countUnread()
         // await user.save()
         req.session.user = user
-        
+
         res.cookie('sessionToken', req.sessionID, {
             httpOnly: true,
             secure: true,
             maxAge: 24 * 60 * 60 * 1000 // 1 day
-          });
+        });
 
         res.status(200).send({ token: req.session.cookie, user, message: 'Welcome back to Career Pivot!' })
 

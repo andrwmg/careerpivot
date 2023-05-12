@@ -41,6 +41,10 @@ exports.create = (req, res) => {
     // Save Post in the database
     newPost.save()
 
+    User.findByIdAndUpdate({ _id: req.session.user._id }, { $addToSet: { posts: newPost._id } })
+      .then(data => {
+        console.log(data)
+      })
     Community.findByIdAndUpdate({ _id: community }, { $addToSet: { 'posts': newPost._id } })
       .then(data => {
         console.log(data)
@@ -148,8 +152,14 @@ exports.findOne = (req, res) => {
         return res.status(404).send({ message: "Post not found" });
       }
       console.log(req.session)
-      data.views.push({user: req.session.user._id})
-      data.save()
+      if (req.session.user) {
+        data.views.push({ user: req.session.user._id })
+        data.save()
+        User.findByIdAndUpdate({ _id: req.session.user._id }, {$push: {$each: [{_id : postId}], $position: 0}})
+          .then(data => {
+            data.views.unshift({ postId })
+          })
+      }
       res.send(data);
     })
     .catch(err => {
@@ -160,6 +170,7 @@ exports.findOne = (req, res) => {
 };
 
 exports.trending = async (req, res) => {
+  try {
   const lastWeek = new Date(); // Create a new Date object for 7 days ago
   lastWeek.setDate(lastWeek.getDate() - 7);
   const posts = await Post.find()
@@ -185,6 +196,10 @@ exports.trending = async (req, res) => {
     return post2.likesPastWeek.length - post1.likesPastWeek.length;
   });
   res.status(200).send({ data: sortedPosts, message: 'Got trending posts!' })
+} catch(e) {
+  console.log(e)
+  res.status(500).send({message: 'Error loading trending posts'})
+}
 }
 
 exports.update = (req, res) => {
@@ -250,7 +265,8 @@ exports.update = (req, res) => {
 exports.like = async (req, res) => {
   try {
 
-    const { postId, userId } = req.params;
+    const { postId } = req.params;
+    const userId = req.session.user._id
 
     if (!userId) {
       return res.status(400).send({ message: 'Must be logged in to like post' })
@@ -270,14 +286,16 @@ exports.like = async (req, res) => {
       await post.save()
       if (userId !== post.author._id) {
 
-        const user = await User.findById(post.author._id)
+        const postAuthor = await User.findById(post.author._id)
 
         const notification = { type: 'Like', body: `${req.session.user.username} liked your post.`, from: req.session.user._id }
 
-        user.notifications.unshift(notification)
+        postAuthor.notifications.unshift(notification)
 
-        await user.save()
+        await postAuthor.save()
       }
+      // Make sure that the post isn't alreayd in there and if it is remove it
+      await User.findByIdAndUpdate({ _id: userId }, { $addToSet: { likes: { post: post._id } } })
       return res.status(200).send({ message: 'Post liked!' })
     } else {
       post.likes.splice(index, 1)

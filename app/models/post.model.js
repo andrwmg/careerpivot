@@ -53,13 +53,7 @@ const PostSchema = new Schema({
     },
     likes: [MetricsSchema],
     views: [MetricsSchema],
-    dislikes: [{
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: "User"
-        },
-        date: Date
-    }],
+    dislikes: [MetricsSchema],
     community: {
         type: Schema.Types.ObjectId,
         ref: 'Community'

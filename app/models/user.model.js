@@ -26,30 +26,30 @@ const NotificationSchema = new Schema({
 },
     { timestamps: true })
 
-    const MessageSchema = new Schema({
-        sender: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: true
-        },
-        recipient: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: true
-        },
-        body: {
-            type: String,
-            required: true
-        },
-        read: {
-            type: Boolean,
-            default: false
-        },
-        liked: {
-            type: Boolean,
-            default: false
-        },
-    }, { timestamps: true })
+const MessageSchema = new Schema({
+    sender: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    recipient: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    body: {
+        type: String,
+        required: true
+    },
+    read: {
+        type: Boolean,
+        default: false
+    },
+    liked: {
+        type: Boolean,
+        default: false
+    },
+}, { timestamps: true })
 
 const UserSchema = new Schema({
     image: ImageSchema,
@@ -77,7 +77,9 @@ const UserSchema = new Schema({
     resetPasswordExpires: Date,
     verificationToken: String,
     messages: [MessageSchema],
+    unreadMessages: Number,
     notifications: [NotificationSchema],
+    unreadNotifications: Number,
     career: {
         type: String,
         default: 'Product Design'
@@ -86,17 +88,32 @@ const UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Community'
     }],
-    // likes: [{
-    //     type: Schema.Types.ObjectId,
-    //     refPath: 'likeType'
-    // }],
-    // likeType: {
-    //     type: String,
-    //     required: true,
-    //     enum: ['Post', 'Comment', 'Message']
-    // },
-    unreadMessages: Number,
-    unreadNotifications: Number,
+    likes: [{
+        post: {
+            type: Schema.Types.ObjectId,
+            refPath: 'Post'
+        },
+        comment: {
+            type: Schema.Types.ObjectId,
+            refPath: 'Comment',
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    views: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Post'
+    }],
+    posts: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Post'
+    }],
+    comments: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Comment'
+    }],
 }, { timestamps: true }
 )
 
@@ -122,12 +139,12 @@ UserSchema.methods.countUnread = function () {
 UserSchema.methods.updateContacts = async function () {
     try {
         const uniqueContacts = await this.model('User').aggregate([
-            {$match: { _id: this._id}},
-            {$unwind: '$messages'},
-            {$group: { _id: { $concat: [ "$messages.sender", "-", "$messages.recipient"]}}},
-            { $project: {user: {$split: ["$_id", "-"]}}},
-            { $unwind: "$user"},
-            { $group: {_id: "$user"}}
+            { $match: { _id: this._id } },
+            { $unwind: '$messages' },
+            { $group: { _id: { $concat: ["$messages.sender", "-", "$messages.recipient"] } } },
+            { $project: { user: { $split: ["$_id", "-"] } } },
+            { $unwind: "$user" },
+            { $group: { _id: "$user" } }
         ])
         this.contacts = uniqueContacts.map(u => u._id)
     } catch (e) {

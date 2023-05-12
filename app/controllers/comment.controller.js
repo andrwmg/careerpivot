@@ -6,19 +6,24 @@ const User = db.users
 exports.create = async (req, res) => {
   try {
     const { postId } = req.params
+    const userId = req.session.user._id
     const post = await Post.findById(postId)
       .populate('author')
     const comment = new Comment(req.body)
-    comment.author = req.session.user._id
+    comment.author = userId
     post.comments.unshift(comment)
     post.commentCount++
     await comment.save()
     await post.save()
 
-    if (req.body.userId !== post.author._id) {
+    User.findByIdAndUpdate({ _id: userId}, { $addToSet: {comments: comment._id}})
+    .then(data => {
+      console.log(data)
+    })
 
+    if (userId !== post.author._id) {
       const user = await User.findById(post.author._id)
-      const notification = { type: 'Comment', body: `${req.session.username} left a comment on your post.`, from: req.session.user._id }
+      const notification = { type: 'Comment', body: `${req.session.username} left a comment on your post`, from: userId }
       user.notifications.unshift(notification)
       user.save()
     }
@@ -40,6 +45,7 @@ exports.create = async (req, res) => {
 
 exports.reply = async (req, res) => {
   const { postId, commentId } = req.params
+  const { userId } = req.session.user._id
   const { body } = req.body
 
   const post = await Post.findById(postId)
@@ -57,15 +63,20 @@ exports.reply = async (req, res) => {
   post.commentCount++
   // post.author.notifications.unshift(notification)
   reply.parentComment = commentId
-  reply.author = req.session.user._id
+  reply.author = userId
 
   comment.replies.unshift(reply)
   comment.replyCount++
 
-  const parentComment = comment.parentComment
-  if (parentComment) {
-
+  const parentCommentId = comment.parentComment
+  if (parentCommentId) {
+    await Comment.updateOne({_id: parentCommentId}, { $inc: {replyCount: 1}})
   }
+
+  User.findByIdAndUpdate({ _id: userId}, { $addToSet: {posts: newPost._id}})
+    .then(data => {
+      console.log(data)
+    })
 
   await reply.save()
   await comment.save()
@@ -83,6 +94,7 @@ exports.reply = async (req, res) => {
 }
 
 exports.findComments = async (req, res) => {
+  try{
   console.log("Yay")
   const { postId } = req.params
   const post = await Post.findById(postId)
@@ -94,9 +106,14 @@ exports.findComments = async (req, res) => {
     })
   const comments = post.comments
   res.status(200).send({ comments })
+  } catch(e){
+    console.log(e)
+    res.status(500).send({message: 'Error loading comments'})
+  }
 }
 
 exports.findReplies = async (req, res) => {
+  try {
   const { commentId } = req.params
   const comment = await Comment.findById(commentId)
     .populate({
@@ -107,6 +124,10 @@ exports.findReplies = async (req, res) => {
     })
   const replies = comment.replies
   res.status(200).send({ replies })
+  } catch(e) {
+    console.log(e)
+    res.status(500).send({message: 'Error loading replies'})
+  }
 }
 
 exports.update = (req, res) => {
