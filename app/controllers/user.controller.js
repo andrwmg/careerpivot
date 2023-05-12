@@ -185,7 +185,7 @@ exports.login = async (req, res, err) => {
         // await user.save()
         req.session.user = user
 
-        const payload = {email: user.email, username: user.username, image: user.image, career: user.career}
+        const payload = { email: user.email, username: user.username, image: user.image, career: user.career }
 
         const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '1h' });
 
@@ -196,7 +196,7 @@ exports.login = async (req, res, err) => {
 
         console.log(req.cookies)
 
-        res.status(200).json({user, message: 'Welcome back to Career Pivot!' })
+        res.status(200).json({ user, message: 'Welcome back to Career Pivot!' })
 
     } catch (err) {
         console.log(err)
@@ -320,70 +320,66 @@ exports.updateUser = async (req, res) => {
         email = email ? email.toLowerCase() : null
 
         const user = await User.findById(userId)
-                if (!user) {
-                    res.status(404).send({ message: 'User not found' })
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' })
+        }
+
+        if (career && career !== user.career) {
+            updatedUser['career'] = career
+        }
+
+        if (email && email !== user.email) {
+            const user = await User.findOne({ email })
+            if (user) {
+                return res.status(401).send({ message: 'Email is already taken' })
+            } else {
+                updatedUser['email'] = email
+            }
+        }
+
+        if (username && username_lower !== user.username_lower) {
+            const user = await User.findOne({ $or: [{ username_lower }, { username }] })
+            if (user) {
+                return res.status(401).send({ message: 'Username is already taken' })
+            } else {
+                updatedUser['username'] = username
+                updatedUser['username_lower'] = username_lower
+            }
+        }
+
+        if (password) {
+            if (password !== confirm) {
+                return res.send({ message: 'Password and confirmation must match' })
+            }
+
+            const compare = await bcrypt.compare(password, user.password)
+            if (!compare) {
+                const salt = await bcrypt.genSalt(saltRounds);
+                const hash = await bcrypt.hash(password, salt);
+                updatedUser['password'] = hash
+            }
+        }
+
+        if (image) {
+            updatedUser['image'] = image
+        }
+
+        console.log(updatedUser)
+
+        if (Object.keys(updatedUser).length === 0) {
+            return res.status(200)
+        }
+
+        // const updatedUser = { career, username, email, password, username_lower }
+
+        User.findByIdAndUpdate(userId, updatedUser, { new: true })
+            .then(user => {
+                if (updatedUser.career) {
+                    //Add user to new career members list
+                    //Remove them from members of old career members lists
                 }
-
-                if (career && career !== user.career) {
-                    updatedUser['career'] = career
-                }
-
-                if (email && email !== user.email) {
-                    await User.findOne({ email })
-                        .then(data => {
-                            if (data) {
-                                return res.send({ message: 'Email is already taken' })
-                            } else {
-                                updatedUser['email'] = email
-                            }
-                        })
-                }
-
-                if (username && username_lower !== user.username_lower) {
-                    await User.findOne({ username_lower })
-                        .then(data => {
-                            if (data) {
-                                return res.send({ message: 'Username is already taken' })
-                            } else {
-                                updatedUser['username'] = username
-                                updatedUser['username_lower'] = username_lower
-                            }
-                        })
-                }
-
-                if (password) {
-                    if (password !== confirm) {
-                        return res.send({ message: 'Password and confirmation must match' })
-                    }
-
-                    const compare = await bcrypt.compare(password, user.password)
-                    if (!compare) {
-                        const salt = await bcrypt.genSalt(saltRounds);
-                        const hash = await bcrypt.hash(password, salt);
-                        updatedUser['password'] = hash
-                    }
-                }
-
-                if (image) {
-                    updatedUser['image'] = image
-                }
-
-                // const updatedUser = { career, username, email, password, username_lower }
-
-                User.findByIdAndUpdate(userId, updatedUser, { new: true })
-                    .then(user => {
-                        if (!user) {
-                            res.status(404).send({
-                                message: 'Cannot update profile'
-                            })
-                        } else {
-                            if (updatedUser.career) {
-                                //Add user to new career members list
-                                //Remove them from members of old career members lists
-                            }
-                            res.status(200).send({ data: user, message: "Profile was updated successfully." });
-                        }
-                    })
+                return res.status(200).send({ data: user, message: "Profile was updated successfully." });
+            })
     } catch (err) {
         console.log(err)
         return res.status(400).send({ message: 'Failed to update profile' });
