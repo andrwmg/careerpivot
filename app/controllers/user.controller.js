@@ -72,7 +72,7 @@ exports.register = async (req, res, err) => {
 
         const existingUser = await User.findOne({ $or: [{ username_lower }, { email }] })
         if (existingUser) {
-            res.status(400).json({ message: 'Username or email are already taken' });
+            res.status(400).send({ message: 'Username or email are already taken' });
             return
         }
 
@@ -88,7 +88,7 @@ exports.register = async (req, res, err) => {
 
         sendVerificationEmail(user.email, user.verificationToken, 'verify')
 
-        res.status(200).json({ message: 'Verification email resent' })
+        res.status(200).send({ message: 'Verification email resent' })
     }
     catch (e) {
         if (e.message.includes('E11000')) {
@@ -147,7 +147,7 @@ exports.resend = async (req, res, err) => {
 
         sendVerificationEmail(user.email, user.verificationToken, 'verify')
 
-        res.status(200).json({ message: 'Verification email resent' })
+        res.status(200).send({ message: 'Verification email resent' })
 
     } catch (e) {
         if (e.message.includes('E11000')) {
@@ -349,7 +349,7 @@ exports.updateUser = async (req, res) => {
 
         if (password) {
             if (password !== confirm) {
-                return res.send({ message: 'Password and confirmation must match' })
+                return res.status(400).send({ message: 'Password and confirmation must match' })
             }
 
             const compare = await bcrypt.compare(password, user.password)
