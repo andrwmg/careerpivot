@@ -44,16 +44,16 @@ exports.create = (req, res) => {
       .then(data => {
         console.log(data)
       })
-    Community.findByIdAndUpdate({ _id: community }, { $addToSet: { 'posts': newPost._id } })
-      .then(data => {
-        console.log(data)
-      })
+    // Community.findByIdAndUpdate({ _id: community }, { $addToSet: { 'posts': newPost._id } })
+    //   .then(data => {
+    //     console.log(data)
+    //   })
     res.status(200).send({ data: newPost, message: 'Post created successfully' });
 
   } catch (e) {
     res.status(500).send({
       message:
-        err.message || "Some error occurred while creating the Post.",
+        e.message || "Some error occurred while creating the Post.",
     });
   }
 };
@@ -63,7 +63,7 @@ exports.findAll = (req, res) => {
     Post.find()
       .populate('author')
       .populate('images')
-      .populate('community')
+      // .populate('community')
       .populate({
         path: 'likes',
         populate: {
