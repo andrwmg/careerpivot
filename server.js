@@ -90,13 +90,13 @@ const userRoutes = require("./app/routes/user.routes");
 const postRoutes = require("./app/routes/post.routes");
 const commentRoutes = require("./app/routes/comment.routes");
 const messageRoutes = require("./app/routes/message.routes");
-const communityRoutes = require("./app/routes/community.routes");
+const groupRoutes = require("./app/routes/group.routes");
 
 app.use('/data/users', userRoutes)
 app.use('/data/posts', postRoutes)
 app.use('/data/posts', commentRoutes)
 app.use('/data/messages', messageRoutes)
-app.use('/data/communities', communityRoutes)
+app.use('/data/groups', groupRoutes)
 
 app.get('/api', (req,res) => {
     res.json({

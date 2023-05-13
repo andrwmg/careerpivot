@@ -20,7 +20,7 @@ const MemberSchema = new Schema({
 //     return this.url.replace("/upload", "/upload/w_200")
 // })
 
-const CommunitySchema = new Schema({
+const GroupSchema = new Schema({
     image: ImageSchema,
     title: {
         type: String,
@@ -50,10 +50,10 @@ const CommunitySchema = new Schema({
     // ,opts
 )
 
-CommunitySchema.pre('deleteOne', async function (next) {
+GroupSchema.pre('deleteOne', async function (next) {
     try {
         console.log('hello!')
-        // Find all posts associated with this community
+        // Find all posts associated with this group
         const posts = await Post.find({ _id: { $in: this.posts } })
         const comments = await Comment.find({ _id: { $in: this.comments } });
         // Delete all posts
@@ -77,4 +77,4 @@ CommunitySchema.pre('deleteOne', async function (next) {
 // })
 
 
-module.exports = mongoose.model('Community', CommunitySchema)
+module.exports = mongoose.model('Group', GroupSchema)

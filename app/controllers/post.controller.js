@@ -1,7 +1,7 @@
 const db = require('../models/index.js')
 const Post = db.posts
 const User = db.users
-const Community = db.communities
+const Group = db.groups
 
 // const mbxgeocoding = require('@mapbox/mapbox-sdk/services/geocoding')
 // const mapboxToken = process.env.MAPBOX_TOKEN
@@ -23,13 +23,14 @@ const sortByLikeDislikeDifference = (a, b) => {
 
 exports.create = (req, res) => {
   try {
-    const { title, body, career, tags, author, images } = req.body
+    const { title, body, career, tags, author, group, images } = req.body
     const newPost = new Post(
       {
         title,
         body,
         career,
         tags,
+        group,
         author: req.session.user._id,
         images: images,
         // comments: [],
@@ -44,7 +45,7 @@ exports.create = (req, res) => {
       .then(data => {
         console.log(data)
       })
-    // Community.findByIdAndUpdate({ _id: community }, { $addToSet: { 'posts': newPost._id } })
+    // Group.findByIdAndUpdate({ _id: group }, { $addToSet: { 'posts': newPost._id } })
     //   .then(data => {
     //     console.log(data)
     //   })
@@ -63,7 +64,7 @@ exports.findAll = (req, res) => {
     Post.find()
       .populate('author')
       .populate('images')
-      // .populate('community')
+      // .populate('group')
       .populate({
         path: 'likes',
         populate: {
@@ -83,7 +84,7 @@ exports.findAll = (req, res) => {
 
 exports.findSome = (req, res) => {
 
-  const {career, sort, order, author, tags, community} = req.params
+  const {career, sort, order, author, tags, group} = req.params
   const filter = {}
   const sortOrder = {}
   if (sort && order) {
@@ -104,8 +105,8 @@ exports.findSome = (req, res) => {
   if (tags) {
     filter.tags = tags
   }
-  if (community) {
-    filter.community = community
+  if (group) {
+    filter.group = group
   }
   Post.find(filter).sort(sortOrder)
     .populate('author')

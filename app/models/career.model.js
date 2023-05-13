@@ -52,7 +52,7 @@ const CareerSchema = new Schema({
 CareerSchema.pre('deleteOne', async function (next) {
     try {
         console.log('hello!')
-        // Find all posts associated with this community
+        // Find all posts associated with this group
         const posts = await Post.find({ _id: { $in: this.posts } })
         const comments = await Comment.find({ _id: { $in: this.comments } });
         // Delete all posts

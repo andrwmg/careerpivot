@@ -84,9 +84,9 @@ const UserSchema = new Schema({
         type: String,
         default: 'Product Design'
     },
-    communities: [{
+    groups: [{
         type: Schema.Types.ObjectId,
-        ref: 'Community'
+        ref: 'Group'
     }],
     likes: [{
         post: {

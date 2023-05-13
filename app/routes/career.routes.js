@@ -15,7 +15,7 @@ router.post('/upload',upload.array('images'),(req,res)=>{
 
 router.get("/", careers.findSome);
 
-router.get('/users/:userId', careers.findMyCommunites)
+router.get('/users/:userId', careers.findMyGroups)
 
 router.get('/career/:career', careers.findPopular)
 

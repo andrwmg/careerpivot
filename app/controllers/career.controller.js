@@ -1,5 +1,5 @@
 const db = require('../models/index.js')
-const Community = db.communities
+const Group = db.groups
 const Post = db.posts
 const User = db.users
 // const mbxgeocoding = require('@mapbox/mapbox-sdk/services/geocoding')
@@ -68,12 +68,12 @@ exports.findAll = (req, res) => {
     }
 };
 
-exports.findMyCommunites = (req, res) => {
+exports.findMyGroups = (req, res) => {
     try {
 
         const { id } = req.session.user._id
 
-        Community.find({ users: id })
+        Group.find({ users: id })
             .populate('author')
             .populate('image')
             .then(data => {
@@ -87,7 +87,7 @@ exports.findMyCommunites = (req, res) => {
 
 exports.findSome = (req, res) => {
     try {
-        const { author, career, tags, community, sort, order, user } = req.query
+        const { author, career, tags, group, sort, order, user } = req.query
         const filter = {}
         const sortOrder = {}
         if (sort && order) {
@@ -108,10 +108,10 @@ exports.findSome = (req, res) => {
         if (tags) {
             filter.tags = tags
         }
-        if (community) {
-            filter.community = community
+        if (group) {
+            filter.group = group
         }
-        Community.find(filter).sort(sortOrder)
+        Group.find(filter).sort(sortOrder)
             .populate('author')
             .populate('images')
             .then(data => {
@@ -128,7 +128,7 @@ exports.join = async (req, res) => {
         const {communityId} = req.params
         const user = await User.findById(req.session.user._id)
         .populate('communities')
-        Community.findOne({_id: communityId})
+        Group.findOne({_id: groupId})
         .populate({
             path: 'members',
             populate: {
@@ -140,14 +140,14 @@ exports.join = async (req, res) => {
             const index = data.members.map(member => member.user._id.toString()).indexOf(req.session.user._id)
             if (index === -1) {
                 data.members.push({user: req.session.user._id})
-                user.communities.push(data._id)
+                user.groups.push(data._id)
                 user.save()
                 data.save()
             return res.status(200).send({data, message: `Joined ${data.title}`})
             } else {
                 data.members.splice(index, 1)
-                const filter = user.communities.filter(community => community._id !== data._id)
-                user.communities = filter
+                const filter = user.groups.filter(community => community._id !== data._id)
+                user.groups = filter
                 user.save()
                 data.save()
             return res.status(200).send({data, message: `Left ${data.title}`})

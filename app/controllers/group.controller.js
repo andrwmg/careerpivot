@@ -23,31 +23,29 @@ const sortByLikeDislikeDifference = (a, b) => {
 exports.create = (req, res) => {
     try {
         const { title, tagline, career, author, images } = req.body
-        const newCommunity = new Post(
+        const newGroup = new Post(
             {
                 title,
                 tagline,
-                body,
                 career,
-                tags,
-                author,
+                author: req.session.user._id,
                 images: images,
-                members: [{ user: req.session.user._id, joinedAt: Date.now() }]
+                members: [{ user: req.session.user._id }]
                 // comments: [],
                 // likes: [],
                 // dislikes: [],
             }
         );
         // Save Post in the database
-        newCommunity
+        newGroup
             .save()
             .then(data => {
-                res.status(200).send({ data, message: 'Community created successfully' });
+                res.status(200).send({ data, message: 'Group created successfully' });
             })
     } catch (e) {
         res.status(500).send({
             message:
-                err.message || "Some error occurred while creating the community",
+                err.message || "Some error occurred while creating the group",
         });
     }
 };
@@ -68,7 +66,7 @@ exports.findAll = (req, res) => {
     }
 };
 
-exports.findMyCommunites = (req, res) => {
+exports.findMyGroups = (req, res) => {
     try {
 
         const { id } = req.session.user._id
@@ -81,7 +79,7 @@ exports.findMyCommunites = (req, res) => {
             })
     } catch (e) {
         console.log(e)
-        res.status(500).send({ message: "Could not find your communites" })
+        res.status(500).send({ message: "Could not find your groups" })
     }
 }
 
@@ -119,16 +117,16 @@ exports.findSome = (req, res) => {
             })
     } catch (e) {
         console.log(e)
-        res.status(500).send({ message: "Could not find those communites" })
+        res.status(500).send({ message: "Could not find those groups" })
     }
 }
 
 exports.join = async (req, res) => {
     try{
-        const {communityId} = req.params
+        const {groupId} = req.params
         const user = await User.findById(req.session.user._id)
         .populate('communities')
-        Community.findOne({_id: communityId})
+        Community.findOne({_id: groupId})
         .populate({
             path: 'members',
             populate: {
@@ -136,7 +134,7 @@ exports.join = async (req, res) => {
             }
         })
         .then(data => {
-            console.log('This is the community: ', data)
+            console.log('This is the group: ', data)
             const index = data.members.map(member => member.user._id.toString()).indexOf(req.session.user._id)
             if (index === -1) {
                 data.members.push({user: req.session.user._id})
@@ -193,7 +191,7 @@ exports.join = async (req, res) => {
 exports.findPopular = async (req, res) => {
     try {
         const { career } = req.params
-        const communities = await Community.find()
+        const groups = await Group.find()
             .populate({
                 path: 'posts',
                 populate: {
@@ -203,9 +201,9 @@ exports.findPopular = async (req, res) => {
                     }
                 }
             })
-        for (let community of communities) {
+        for (let group of groups) {
             let totalLikeCount = 0
-            for (let post of community.posts) {
+            for (let post of group.posts) {
                 let filteredLikes = post.likes.filter(like => {
                     return like.user.career === career
                 })
@@ -217,27 +215,27 @@ exports.findPopular = async (req, res) => {
                 // })
                 totalLikeCount += filteredLikes.length
             }
-            community['totalLikeCount'] = totalLikeCount
+            group['totalLikeCount'] = totalLikeCount
         }
-        const sortedCommunities = communities.sort((comm1, comm2) => {
-            if (comm1.likeCount !== comm2.likeCount) {
-                return comm2.totalLikeCount - comm1.totalLikeCount
+        const sortedGroups = groups.sort((group1, group2) => {
+            if (group1.likeCount !== group2.likeCount) {
+                return group2.totalLikeCount - group1.totalLikeCount
             } else {
-                return comm1.title.localeCompare(comm2.title)
+                return group1.title.localeCompare(group2.title)
             }
         });
-        res.status(200).send({ data: sortedCommunities, career, message: 'Got the popular communities!' })
+        res.status(200).send({ data: sortedGroup, career, message: 'Got the popular groups!' })
     } catch (e) {
         console.log(e)
-        res.status(500).send({ message: 'Could not get popular communities' })
+        res.status(500).send({ message: 'Could not get popular groups' })
     }
 }
 
 
 exports.findOne = (req, res) => {
     try {
-        const { communityId } = req.params;
-        Community.findById(communityId)
+        const { groupId } = req.params;
+        Group.findById(groupId)
             .populate('author')
             .populate({
                 path: 'posts',
@@ -248,7 +246,7 @@ exports.findOne = (req, res) => {
             .populate('image')
             .then(data => {
                 if (!data) {
-                    res.status(404).send({ message: "Could not find community" });
+                    res.status(404).send({ message: "Could not find group" });
                 } else {
                     for (let post of data.posts) {
                         const userLikes = post.likes.map(l => l.userId)
