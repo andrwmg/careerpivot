@@ -27,8 +27,8 @@ router.put("/:postId", verifyToken, isPostAuthor, posts.update);
 
 router.delete("/:postId", verifyToken, posts.delete);
 
-router.get("/:postId/likes/:userId", posts.like)
+router.get("/:postId/likes/:userId", verifyToken, posts.like)
 
-router.get("/:postId/dislikes/:userId", posts.dislike)
+router.get("/:postId/dislikes/:userId", verifyToken, posts.dislike)
 
 module.exports = router
