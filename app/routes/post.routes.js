@@ -1,12 +1,12 @@
 const posts = require("../controllers/post.controller.js");
 const router = require("express").Router();
-const {isLoggedIn, isPostAuthor} = require('../../middleware')
+const {verifyToken, isPostAuthor} = require('../../middleware')
 const multer = require('multer')
 const {storage} = require('../cloudinary');
 const { url } = require("../config/db.config.js");
 const upload = multer({storage})
 
-router.post("/", isLoggedIn, posts.create);
+router.post("/", verifyToken, posts.create);
 
 router.post('/upload',upload.array('images'),(req,res)=>{
   console.log(req.files.map(img => ({ filename: img.filename, url: img.path })))
@@ -15,15 +15,17 @@ router.post('/upload',upload.array('images'),(req,res)=>{
 
 router.get("/", posts.findSome);
 
-router.get("/:postId", posts.findOne);
+router.get("/trending", posts.trending)
 
-router.get("/careers/:career/trending", posts.trending)
+router.get('/latest', posts.latest)
 
 router.get("/careers/:career", posts.findSome);
 
-router.put("/:postId", isLoggedIn, isPostAuthor, posts.update);
+router.get("/:postId", posts.findOne);
 
-router.delete("/:postId", isLoggedIn, posts.delete);
+router.put("/:postId", verifyToken, isPostAuthor, posts.update);
+
+router.delete("/:postId", verifyToken, posts.delete);
 
 router.get("/:postId/likes/:userId", posts.like)
 

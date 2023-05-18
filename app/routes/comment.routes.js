@@ -1,30 +1,33 @@
-const { isLoggedIn } = require("../../middleware.js");
+const { isLoggedIn, verifyToken, isCommentAuthor } = require("../../middleware.js");
 const comments = require("../controllers/comment.controller.js");
 
 const router = require("express").Router();
 
-// // Create a new Tutorial
-router.post("/:postId/comments", isLoggedIn, comments.create);
+// // Create a new comment
+router.post("/:postId/comments", verifyToken, comments.create);
 
-
-router.post("/:postId/comments/:commentId", isLoggedIn, comments.reply);
+// // Reply to a comment
+router.post("/:postId/comments/:commentId", verifyToken, comments.reply);
 
 // // Retrieve all comments for a post
 router.get("/:postId/comments", comments.findComments);
 
-// // Retrieve all published Tutorials
+// // Retrieve all published comments
 // router.get("/published", comments.findAllPublished);
 
-// // Retrieve a single Tutorial with id
+// // Retrieve replies for a comment
 router.get("/:postId/comments/:commentId", comments.findReplies);
 
-// // Update a Tutorial with id
-// router.put("/:id", comments.update);
+// // Like/unlike a comment
+router.get("/:postId/comments/:commentId/likes", verifyToken, comments.like)
 
-// // Delete a Tutorial with id
-router.delete("/:postId/comments/:commentId", isLoggedIn, comments.delete);
+// Update a comment with id
+router.put("/:postId/comments/:commentId", verifyToken, isCommentAuthor, comments.update);
 
-// // Create a new Tutorial
+// // Delete a comment with id
+router.delete("/:postId/comments/:commentId", verifyToken, comments.delete);
+
+// // Delete all comments
 // router.delete("/", comments.deleteAll);
 
 module.exports = router

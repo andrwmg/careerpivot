@@ -1,6 +1,6 @@
 const careers = require("../controllers/career.controller.js");
 const router = require("express").Router();
-const {isLoggedIn, isPostAuthor} = require('../../middleware')
+const { verifyToken, isPostAuthor } = require("../../middleware.js");
 const multer = require('multer')
 const {storage} = require('../cloudinary');
 const { url } = require("../config/db.config.js");
@@ -23,9 +23,9 @@ router.put('/:communityId/members', careers.join)
 
 router.get("/:communityId", careers.findOne);
 
-router.put("/:communityId", isLoggedIn, isPostAuthor, careers.update);
+router.put("/:communityId", verifyToken, isPostAuthor, careers.update);
 
-router.delete("/:communityId", isLoggedIn, careers.delete);
+router.delete("/:communityId", verifyToken, careers.delete);
 
 router.get("/:communityId/likes/:userId", careers.like)
 

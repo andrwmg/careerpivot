@@ -22,15 +22,17 @@ const sortByLikeDislikeDifference = (a, b) => {
 
 exports.create = (req, res) => {
     try {
-        const { title, tagline, career, author, images } = req.body
+        const { title, tagline, career, images } = req.body
+        const userId = req.session.user._id
+
         const newGroup = new Post(
             {
                 title,
                 tagline,
                 career,
-                author: req.session.user._id,
+                author: userId,
                 images: images,
-                members: [{ user: req.session.user._id }]
+                members: [{ user: userId }]
                 // comments: [],
                 // likes: [],
                 // dislikes: [],
@@ -69,9 +71,9 @@ exports.findAll = (req, res) => {
 exports.findMyGroups = (req, res) => {
     try {
 
-        const { id } = req.session.user._id
+        const userId = req.session.user._id
 
-        Community.find({ users: id })
+        Community.find({ users: userId })
             .populate('author')
             .populate('image')
             .then(data => {
@@ -85,7 +87,7 @@ exports.findMyGroups = (req, res) => {
 
 exports.findSome = (req, res) => {
     try {
-        const { author, career, tags, community, sort, order, user } = req.query
+        const { author, career, tags, community, sort, order } = req.query
         const filter = {}
         const sortOrder = {}
         if (sort && order) {
@@ -124,7 +126,9 @@ exports.findSome = (req, res) => {
 exports.join = async (req, res) => {
     try{
         const {groupId} = req.params
-        const user = await User.findById(req.session.user._id)
+        const userId = req.session.user._id
+
+        const user = await User.findById(userId)
         .populate('communities')
         Community.findOne({_id: groupId})
         .populate({
@@ -326,7 +330,8 @@ exports.update = (req, res) => {
 exports.like = async (req, res) => {
     try {
 
-        const { postId, userId } = req.params;
+        const { postId } = req.params;
+        const userId = req.session.user._id
 
         if (!userId) {
             return res.status(400).send({ message: 'Must be logged in to like post' })
@@ -367,7 +372,8 @@ exports.like = async (req, res) => {
 exports.dislike = async (req, res) => {
     try {
 
-        const { postId, userId } = req.params;
+        const { postId } = req.params;
+        const userId = req.session.user._id
 
         const post = await Post.findByIdAndUpdate({
             _id: postId, 'dislikes.userId': { $ne: userId }
@@ -382,7 +388,7 @@ exports.dislike = async (req, res) => {
 
             const user = await User.findById(post.author._id)
 
-            const notification = { type: 'Dislike', body: `${req.session.user.username} disliked your post.`, from: req.session.user._id }
+            const notification = { type: 'Dislike', body: `${req.session.user.username} disliked your post.`, from: userId }
 
             user.notifications.unshift(notification)
 

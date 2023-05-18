@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router({ mergeParams: true });
-const { isLoggedIn } = require('../../middleware');
+const { verifyToken } = require('../../middleware');
 const users = require('../controllers/user.controller');
 const multer = require('multer')
 const {storage} = require('../cloudinary');
@@ -10,7 +10,7 @@ router.post('/register', users.register)
 
 router.post('/login', users.login) 
 
-router.post('/getUser', isLoggedIn, users.getUser)
+// router.post('/getUser', verifyToken, users.getUser)
 
 router.get('/verify/:token', users.verify)
 

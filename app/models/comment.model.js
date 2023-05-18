@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const MetricsSchema = new Schema({
+    user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }
+},{timestamps: true})
+
 const CommentSchema = new Schema({
     body: String,
     author: {
@@ -11,17 +18,15 @@ const CommentSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: "Comment"
     }],
-    likes: [{
-        userId: String,
-        date: Date
-    }],
-    dislikes: [{
-        userId: String,
-        date: Date
-    }],
+    likes: [MetricsSchema],
+    dislikes: [MetricsSchema],
     parentComment: {
         type: Schema.Types.ObjectId,
         ref: "Comment"
+    },
+    parentPost: {
+        type: Schema.Types.ObjectId,
+        ref: "Post"
     },
     replyCount: {
         type: Number,

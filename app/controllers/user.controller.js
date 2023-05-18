@@ -178,7 +178,7 @@ exports.login = async (req, res, err) => {
             return res.status(404).send({ message: 'Invalid email or password' });
         }
         if (!user.isVerified) {
-            return res.status(401).send({ message: 'Account not verified' });
+            return res.status(403).send({ message: 'Account not verified' });
         }
 
         // user.countUnread()
@@ -187,7 +187,7 @@ exports.login = async (req, res, err) => {
 
         const payload = { email: user.email, username: user.username, image: user.image, career: user.career }
 
-        const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '1h' });
+        const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '1hr' });
 
         res.cookie('token', token, {
             httpOnly: false,
@@ -331,7 +331,7 @@ exports.updateUser = async (req, res) => {
         if (email && email !== user.email) {
             const user = await User.findOne({ email })
             if (user) {
-                return res.status(401).send({ message: 'Email is already taken' })
+                return res.status(409).send({ message: 'Email is already taken' })
             } else {
                 updatedUser['email'] = email
             }
@@ -340,7 +340,7 @@ exports.updateUser = async (req, res) => {
         if (username && username_lower !== user.username_lower) {
             const user = await User.findOne({ $or: [{ username_lower }, { username }] })
             if (user) {
-                return res.status(401).send({ message: 'Username is already taken' })
+                return res.status(409).send({ message: 'Username is already taken' })
             } else {
                 updatedUser['username'] = username
                 updatedUser['username_lower'] = username_lower

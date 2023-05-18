@@ -23,7 +23,8 @@ const sortByLikeDislikeDifference = (a, b) => {
 
 exports.create = (req, res) => {
   try {
-    const { title, body, career, tags, author, group, images } = req.body
+    const { title, body, career, tags, group, images } = req.body
+    const userId = req.session.user._id
     const newPost = new Post(
       {
         title,
@@ -31,7 +32,7 @@ exports.create = (req, res) => {
         career,
         tags,
         group,
-        author: req.session.user._id,
+        author: userId,
         images: images,
         // comments: [],
         // likes: [],
@@ -84,7 +85,7 @@ exports.findAll = (req, res) => {
 
 exports.findSome = (req, res) => {
 
-  const {career, sort, order, author, tags, group} = req.params
+  const { career, sort, order, author, tags, group } = req.params
   const filter = {}
   const sortOrder = {}
   if (sort && order) {
@@ -124,60 +125,55 @@ exports.findSome = (req, res) => {
 
 exports.findOne = (req, res) => {
   try {
-  const { postId } = req.params;
-  Post.findById(postId)
-    .populate('author')
-    .populate('images')
-    .populate('career')
-    .populate({
-      path: 'likes',
-      populate: {
-        path: 'user'
-      }
-    })
-    .populate({
-      path: 'views',
-      populate: {
-        path: 'user'
-      }
-    })
-    .populate({
-      path: 'comments',
-      populate: {
-        path: 'author'
-      }
-    })
-    .then(data => {
-      if (!data) {
-        return res.status(404).send({ message: "Post not found" });
-      }
-      if (req.session.user) {
-        data.views.push({ user: req.session.user._id })
-        data.save()
-        User.findById({ _id: req.session.user._id })
-        .then(data => {
-          data.views.unshift({post: postId})
+    const { postId } = req.params;
+    Post.findById(postId)
+      .populate('author')
+      .populate('images')
+      .populate('career')
+      .populate({
+        path: 'likes',
+        populate: {
+          path: 'user'
+        }
+      })
+      .populate({
+        path: 'views',
+        populate: {
+          path: 'user'
+        }
+      })
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'author'
+        }
+      })
+      .then(data => {
+        if (!data) {
+          return res.status(404).send({ message: "Post not found" });
+        }
+        if (req.session.user) {
+          data.views.push({ user: req.session.user._id })
           data.save()
-        })
-      }
-      res.send(data);
-    })
-  } catch(e) {
-      res.status(500).send({ message: "Error retreiving post" });
-    };
+          User.findById({ _id: req.session.user._id })
+            .then(data => {
+              data.views.unshift({ post: postId })
+              data.save()
+            })
+        }
+        res.send(data);
+      })
+  } catch (e) {
+    res.status(500).send({ message: "Error retreiving post" });
+  };
 };
 
 exports.trending = async (req, res) => {
   try {
-    const {career} = req.params
-    let filter = {}
-    if (career) {
-      filter['career'] = career
-    }
+
     const lastWeek = new Date(); // Create a new Date object for 7 days ago
     lastWeek.setDate(lastWeek.getDate() - 7);
-    console.log(filter)
-    const posts = await Post.find(filter)
+    const posts = await Post.find(req.query)
       .populate('author')
       .populate('images')
       .populate({
@@ -194,7 +190,7 @@ exports.trending = async (req, res) => {
       })
       post['likesPastWeek'] = likesFromPastWeek
       return post
-  })
+    })
     const sortedPosts = filteredPosts.sort((post1, post2) => {
       return post2.likesPastWeek.length - post1.likesPastWeek.length;
     });
@@ -203,6 +199,36 @@ exports.trending = async (req, res) => {
     res.status(500).send({ message: 'Error loading trending posts' })
   }
 }
+
+exports.latest = async (req, res) => {
+  try {
+
+    console.log('Latest query: ', req.query)
+
+    const posts = await Post.find(req.query)
+      .populate('author')
+      .populate('images')
+      .populate({
+        path: 'likes',
+        populate: {
+          path: 'user'
+        }
+      })
+
+    console.log(posts)
+
+    const sortedPosts = posts.sort((post1, post2) => {
+      return post2.createdAt - post1.createdAt;
+    });
+
+    console.log(sortedPosts)
+
+    res.status(200).send({ data: sortedPosts, message: 'Got latest posts!' })
+  } catch (e) {
+    res.status(500).send({ message: 'Error loading latest posts' })
+  }
+}
+
 
 exports.update = (req, res) => {
   try {
@@ -316,7 +342,8 @@ exports.like = async (req, res) => {
 exports.dislike = async (req, res) => {
   try {
 
-    const { postId, userId } = req.params;
+    const { postId } = req.params;
+    const userId = req.session.user._id
 
     const post = await Post.findByIdAndUpdate({
       _id: postId, 'dislikes.userId': { $ne: userId }
@@ -361,7 +388,6 @@ exports.delete = async (req, res) => {
       message: "Post was deleted successfully!"
     })
   } catch (e) {
-    console.log("Oahweghwoeg", e)
     res.status(500).send({
       message: "Could not delete post with id="
     });
