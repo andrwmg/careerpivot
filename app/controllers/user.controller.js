@@ -187,7 +187,7 @@ exports.login = async (req, res, err) => {
 
         const payload = { email: user.email, username: user.username, image: user.image, career: user.career }
 
-        const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '1hr' });
+        const token = jwt.sign(payload, process.env.SECRET, { expiresIn: '24hr' });
 
         res.cookie('token', token, {
             httpOnly: false,
