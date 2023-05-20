@@ -144,7 +144,7 @@ exports.findOne = (req, res) => {
       })
       .populate({
         path: 'comments',
-        options: { limit: 10 },
+        options: { sort: {'createdAt': -1}, limit: 10 },
         populate: {
           path: 'author'
         }

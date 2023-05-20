@@ -336,6 +336,7 @@ exports.updateUser = async (req, res) => {
                 updatedUser['email'] = email
             }
         }
+        console.log(username, username_lower, user.username_lower)
 
         if (username && username_lower !== user.username_lower) {
             const user = await User.findOne({ $or: [{ username_lower }, { username }] })

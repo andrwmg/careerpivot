@@ -7,6 +7,9 @@ const methodOverride = require('method-override')
 const MongoStore = require("connect-mongo")
 const cookieParser = require('cookie-parser');
 require('dotenv').config() 
+const socketio = require('socket.io')
+const http = require('http')
+const {initialize} = require('./socket')
 
 const app = express()
 
@@ -109,7 +112,38 @@ app.get('/api', (req,res) => {
   })
   
   // set port, listen for requests
-  const PORT = process.env.PORT || 7070;
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}.`);
-  });
+function startServer () {
+    const PORT = process.env.PORT || 7070;
+    const server = app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}.`);
+    });
+  
+  
+    // const io = initialize(server)
+  
+    // io.on('connection', (socket) => {
+    //   console.log('A user connected');
+    
+    //   socket.on('disconnect', () => {
+    //     console.log('A user disconnected');
+    //   });
+    
+    //   socket.on('new notification', (data) => {
+    //     console.log('Received message:', data);
+
+        
+    
+    //     // Handle the message and emit responses or broadcast to other connected clients
+    //   });
+    //   socket.on('new comment', (data) => {
+    //     console.log('Received message:', data);
+
+        
+    
+    //     // Handle the message and emit responses or broadcast to other connected clients
+    //   });
+    // });
+    // return io;
+  }
+  const io = startServer()
+//   app.set('socketio', io);

@@ -4,8 +4,8 @@ const Post = db.posts
 const User = db.users
 
 const cascadeCommentCount = async (comment, increment) => {
-  const next = await Comment.findByIdAndUpdate(comment._id, {$inc: {replyCount: increment}})
-  .populate('parentComment')
+  const next = await Comment.findByIdAndUpdate(comment._id, { $inc: { replyCount: increment } })
+    .populate('parentComment')
 
   console.log(next.parentComment)
 
@@ -17,38 +17,51 @@ const cascadeCommentCount = async (comment, increment) => {
 exports.create = async (req, res) => {
   try {
     const { postId } = req.params
+    const {body} = req.body
     const userId = req.session.user._id
     const post = await Post.findById(postId)
       .populate('author')
-    const comment = new Comment(req.body)
-    comment.author = userId
-    post.comments.unshift(comment)
+    const comment = new Comment({body, parentPost: postId, author: userId})
+    post.comments.unshift(comment._id)
     post.commentCount++
     await comment.save()
     await post.save()
 
-    User.findByIdAndUpdate({ _id: userId }, { $addToSet: { comments: comment._id } })
-      .then(data => {
-        console.log(data)
-      })
+    const user = await User.findByIdAndUpdate({ _id: userId }, { $addToSet: { comments: comment._id } })
+    .populate('image')
+      // .then(data => {
+      //   console.log(data)
+      // })
+      // const io = req.app.get('socketio')
 
     if (userId !== post.author._id) {
+      console.log(io)
       const user = await User.findById(post.author._id)
-      const notification = { type: 'Comment', body: `${req.session.username} left a comment on your post`, from: userId }
+      const notification = { type: 'Comment', body: `${req.session.user.username} left a comment on your post`, from: userId }
       user.notifications.unshift(notification)
       user.save()
+      // io.emit('new notification', {
+      //   originalAuthor: post.author._id,
+      //   notificationId: 1,
+      //   from: userId,
+      //   postId,
+      //   commentId: comment._id,
+      //   body: `${req.session.user.username} ${post.comments.length > 1 && `and ${post.comments.length - 1} others`} left a comment on your post`
+      // })
     }
 
-    await Post.findById(postId)
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'author'
-        }
-      })
-      .then(data => {
-        res.send(data)
-      })
+    await Comment.findById(comment._id)
+    .populate({
+      path: 'author',
+      populate: {
+        path: 'image'
+      }
+    })
+    .then(data => {
+      // io.emit('new comment', data)
+      res.status(200).send({data, message: 'Comment added'})
+    })
+
   } catch (e) {
     res.status(400)
   }
@@ -66,90 +79,76 @@ exports.reply = async (req, res) => {
         path: 'comments',
         populate: {
           path: 'replies'
-        }})
+        }
+      })
     const comment = await Comment.findById(commentId)
       .populate('author')
 
-    console.log(post.comments[0].replies)
-
     const reply = new Comment({ body, parentComment: commentId, parentPost: postId, author: userId })
-    // post.author.notifications.unshift(notification)
-    // reply.parentComment = commentId
-    // reply.parentPost = postId
-    // reply.author = userId
 
     comment.replies.unshift(reply._id)
     comment.replyCount++
 
     post.commentCount++
 
-    // const cascadeCommentCount = async (comment) => {
-    //   const next = await Comment.findByIdAndUpdate(comment._id, {$inc: {replyCount: 1}})
-    //   .populate('parentComment')
-
-    //   console.log(next.parentComment)
-
-    //   if (next.parentComment) {
-    //     cascadeCommentCount(next.parentComment)
-    //   }
-    // }
     cascadeCommentCount(comment, 1)
 
-      // let updatedComment = comment
-      // console.log('Initial', updatedComment, updatedComment.toString())
-
-      // do {
-      //   const parentCommentId = updatedComment.parentComment.toString()
-      //   console.log('Before updating and moving to next comment', parentCommentId)
-      //     const next = await Comment.updateOne({ _id: parentCommentId }, { $inc: { replyCount: 1 } })
-      //     updatedComment = next.parentComment
-      //     console.log('New comment with parent', updatedComment)
-      // }
-      // while (updatedComment.parentComment)
-
-
-    // const parentCommentId = comment.parentComment
-    // if (parentCommentId) {
-    //   await Comment.updateOne({_id: parentCommentId}, { $inc: {replyCount: 1}})
-    // }
-
     User.findByIdAndUpdate({ _id: userId }, { $addToSet: { comments: reply._id } })
-      .then(data => {
-        console.log(data)
-      })
 
     await reply.save()
     await comment.save()
     await post.save()
-    res.status(200).send({data: reply, message: 'Successfully replied'})
-    // await Comment.findById(commentId)
-    //   .populate({
-    //     path: 'replies',
-    //     populate: {
-    //       path: 'author',
-    //     }
-    //   })
-    //   .then((data) => {
-    //     res.send(data.replies)
-    //   })
-  } catch (e) {
+
+    if (userId !== comment.author._id) {
+      // const io = req.app.get('socketio')
+      const user = await User.findById(comment.author._id)
+      const notification = { type: 'Reply', body: `${req.session.user.username} replied to your comment`, from: userId }
+      user.notifications.unshift(notification)
+      user.save()
+      // io.emit('new notification', {
+      //   originalAuthor: comment.author._id,
+      //   notificationId: 1,
+      //   from: userId,
+      //   postId,
+      //   commentId: comment._id,
+      //   body: `${req.session.user.username} ${comment.replies.length > 1 ? `and ${comment.replies.length - 1} others` : ''} replied to your comment`
+      // })
+    }
+
+    await Comment.findById(reply._id)
+    .populate({
+      path: 'author',
+      populate: {
+        path: 'image'
+      }
+    })
+    .then(data => {
+      console.log(data.author.image)
+      res.status(200).send({data, message: 'Reply added'})
+    })
+    } catch (e) {
     res.status(400).send({ message: "Error replying to comment" })
   }
 }
 
 exports.findComments = async (req, res) => {
   try {
-    console.log("Yay")
     const { postId } = req.params
+    const {skip, limit} = req.query
     const post = await Post.findById(postId)
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'author',
-        }
-      })
+    .populate({
+      path: 'comments',
+      options: {
+        sort: {'createdAt': -1},
+        skip: parseInt(skip),
+        limit: parseInt(limit)
+      },
+      populate: {
+        path: 'author',
+      }
+    })
     const comments = post.comments
-    res.status(200).send({ comments })
+    res.status(200).send( comments )
   } catch (e) {
     console.log(e)
     res.status(500).send({ message: 'Error loading comments' })
@@ -231,6 +230,7 @@ exports.like = async (req, res) => {
 exports.update = (req, res) => {
   try {
     const { commentId } = req.params
+    console.log(req.body)
     const { body } = req.body
     Comment.findByIdAndUpdate(commentId, { body }, { new: true })
       .then(data => {
@@ -260,7 +260,7 @@ exports.delete = async (req, res) => {
       .populate('author')
     post.comments = post.comments.filter(comment => comment._id !== commentId)
     post.commentCount--
-    
+
     await Post.save()
 
     res.status(200).send({ data: post, message: 'Comment deleted' })
