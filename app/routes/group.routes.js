@@ -15,6 +15,8 @@ router.post('/upload',upload.array('images'),(req,res)=>{
 
 router.get("/", groups.findSome);
 
+router.get('/titles', groups.findAll)
+
 router.get('/users/:userId', groups.findMyGroups)
 
 router.get('/career/:career', groups.findPopular)
@@ -30,5 +32,7 @@ router.delete("/:groupId", verifyToken, groups.delete);
 router.get("/:groupId/likes/:userId", verifyToken, groups.like)
 
 router.get("/:groupId/dislikes/:userId", verifyToken, groups.dislike)
+
+router.post("/seed", groups.seed)
 
 module.exports = router

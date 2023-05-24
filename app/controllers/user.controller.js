@@ -63,6 +63,7 @@ exports.register = async (req, res, err) => {
     try {
         let { email, username } = req.body
         const { password, image } = req.body
+        const errors = {}
 
         if (!email || !username || !password) {
             return res.status(400).send({ message: 'Email, username, and password fields are required' })
@@ -72,8 +73,20 @@ exports.register = async (req, res, err) => {
 
         const existingUser = await User.findOne({ $or: [{ username_lower }, { email }] })
         if (existingUser) {
-            res.status(400).send({ message: 'Username or email are already taken' });
-            return
+            errors.email = 'Email is already taken'
+            // res.status(400).send({ message: 'Username or email are already taken' });
+            // return
+        }
+
+        const existingUsername = await User.findOne({ username_lower })
+        if (existingUsername) {
+            errors.username = 'Username is already taken'
+            // res.status(400).send({ message: 'Username or email are already taken' });
+            // return
+        }
+
+        if (errors) {
+            return res.status(403).send(errors)
         }
 
         const user = new User({ email, username, image })
@@ -170,6 +183,7 @@ exports.login = async (req, res, err) => {
         email = email.toLowerCase()
         const user = await User.findOne({ email })
             .populate('image')
+            .populate('career')
         if (!user) {
             return res.status(404).send({ message: 'Invalid email or password' });
         }
@@ -292,14 +306,15 @@ exports.reset = async (req, res) => {
             bcrypt.genSalt(saltRounds, (err, salt) => {
                 if (err) {
                     return next(err);
-                } else { }
-                bcrypt.hash(password, salt, (err, hash) => {
-                    user.password = hash;
-                    user.resetPasswordToken = null;
-                    user.resetPasswordExpires = null;
-                    user.save()
-                    res.status(200).send({ message: 'Password reset successful' });
-                })
+                } else {
+                    bcrypt.hash(password, salt, (err, hash) => {
+                        user.password = hash;
+                        user.resetPasswordToken = null;
+                        user.resetPasswordExpires = null;
+                        user.save()
+                        res.status(200).send({ message: 'Password reset successful' });
+                    })
+                }
             })
         }
     }
@@ -313,6 +328,7 @@ exports.updateUser = async (req, res) => {
     try {
         const { userId } = req.params
         const updatedUser = {}
+        const errors = {}
 
         let { username, email, password, confirm, career, image } = req.body
 
@@ -320,28 +336,32 @@ exports.updateUser = async (req, res) => {
         email = email ? email.toLowerCase() : null
 
         const user = await User.findById(userId)
+        .populate('career')
         if (!user) {
             return res.status(404).send({ message: 'User not found' })
         }
 
-        if (career && career !== user.career) {
-            updatedUser['career'] = career
-        }
+        if (!career) {
+            updatedUser['career'] = null
+        } else if ((user.career && career._id !== user.career._id)|| !user.career) {
+                updatedUser['career'] = career._id
+            }
 
         if (email && email !== user.email) {
             const user = await User.findOne({ email })
             if (user) {
-                return res.status(409).send({ message: 'Email is already taken' })
+                errors.email = 'Email is already taken'
+                // return res.status(409).send({ message: 'Email is already taken' })
             } else {
                 updatedUser['email'] = email
             }
         }
-        console.log(username, username_lower, user.username_lower)
 
         if (username && username_lower !== user.username_lower) {
             const user = await User.findOne({ $or: [{ username_lower }, { username }] })
             if (user) {
-                return res.status(409).send({ message: 'Username is already taken' })
+                errors.username = 'Username is already taken'
+                // return res.status(409).send({ message: 'Username is already taken' })
             } else {
                 updatedUser['username'] = username
                 updatedUser['username_lower'] = username_lower
@@ -350,7 +370,8 @@ exports.updateUser = async (req, res) => {
 
         if (password) {
             if (password !== confirm) {
-                return res.status(400).send({ message: 'Password and confirmation must match' })
+                errors.password = 'Password and confirmation must match'
+                // return res.status(400).send({ message: 'Password and confirmation must match' })
             }
 
             const compare = await bcrypt.compare(password, user.password)
@@ -365,7 +386,12 @@ exports.updateUser = async (req, res) => {
             updatedUser['image'] = image
         }
 
+        console.log(errors)
         console.log(updatedUser)
+
+        if (Object.keys(errors).length !== 0) {
+            return res.status(403).send(errors)
+        }
 
         if (Object.keys(updatedUser).length === 0) {
             return res.status(200)
@@ -374,6 +400,7 @@ exports.updateUser = async (req, res) => {
         // const updatedUser = { career, username, email, password, username_lower }
 
         User.findByIdAndUpdate(userId, updatedUser, { new: true })
+            .populate('career')
             .then(user => {
                 // if (updatedUser.career) {
                 //     //Add user to new career members list

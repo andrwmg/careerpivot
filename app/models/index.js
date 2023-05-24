@@ -9,7 +9,7 @@ db.url = dbConfig.url;
 db.comments = require("./comment.model.js");
 db.posts = require("./post.model.js");
 db.users = require("./user.model.js");
-db.messages = require('./message.model')
-db.groups = require('./group.model')
+db.messages = require('./message.model.js')
+db.groups = require('./group.model.js')
 
 module.exports = db;

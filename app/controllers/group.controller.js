@@ -1,7 +1,7 @@
 const db = require('../models/index.js')
-const Community = db.communities
 const Post = db.posts
 const User = db.users
+const Group = db.groups
 // const mbxgeocoding = require('@mapbox/mapbox-sdk/services/geocoding')
 // const mapboxToken = process.env.MAPBOX_TOKEN
 // const geocoder = mbxgeocoding({ accessToken: mapboxToken })
@@ -22,20 +22,17 @@ const sortByLikeDislikeDifference = (a, b) => {
 
 exports.create = (req, res) => {
     try {
-        const { title, tagline, career, images } = req.body
+        const { title, description, image } = req.body
         const userId = req.session.user._id
 
         const newGroup = new Post(
             {
                 title,
-                tagline,
-                career,
+                description,
                 author: userId,
-                images: images,
+                images: image,
+                description,
                 members: [{ user: userId }]
-                // comments: [],
-                // likes: [],
-                // dislikes: [],
             }
         );
         // Save Post in the database
@@ -54,16 +51,15 @@ exports.create = (req, res) => {
 
 exports.findAll = (req, res) => {
     try {
-        Post.find()
-            .populate('author')
-            .populate('images')
+        Group.find()
+            .sort({title: 1})
             .then(data => {
-                res.send(data)
+                res.status(200).send(data.map(d => {return {title: d.title, _id: d._id}}))
             })
     } catch (e) {
         res.status(500).send({
             message:
-                err.message || "Some error occurred while retrieving posts"
+                err.message || "Some error occurred while retrieving groups"
         });
     }
 };
@@ -73,11 +69,11 @@ exports.findMyGroups = (req, res) => {
 
         const userId = req.session.user._id
 
-        Community.find({ users: userId })
+        Group.find({ members: userId })
             .populate('author')
             .populate('image')
             .then(data => {
-                res.send(data)
+                res.status(200).send(data)
             })
     } catch (e) {
         console.log(e)
@@ -87,7 +83,7 @@ exports.findMyGroups = (req, res) => {
 
 exports.findSome = (req, res) => {
     try {
-        const { author, career, tags, community, sort, order } = req.query
+        const { author, user, sort, order } = req.query
         const filter = {}
         const sortOrder = {}
         if (sort && order) {
@@ -102,20 +98,15 @@ exports.findSome = (req, res) => {
         if (author) {
             filter.author = author
         }
-        if (career) {
-            filter.career = career
+        if (user) {
+            filter.members = user
         }
-        if (tags) {
-            filter.tags = tags
-        }
-        if (community) {
-            filter.community = community
-        }
-        Community.find(filter).sort(sortOrder)
+
+        Group.find(filter).sort(sortOrder)
             .populate('author')
-            .populate('images')
+            .populate('image')
             .then(data => {
-                res.send(data)
+                res.status(200).send(data)
             })
     } catch (e) {
         console.log(e)
@@ -129,19 +120,14 @@ exports.join = async (req, res) => {
         const userId = req.session.user._id
 
         const user = await User.findById(userId)
-        .populate('communities')
-        Community.findOne({_id: groupId})
-        .populate({
-            path: 'members',
-            populate: {
-                path: 'user'
-            }
-        })
+        .populate('groups')
+        Group.findOne({_id: groupId})
+        .populate()
         .then(data => {
             console.log('This is the group: ', data)
-            const index = data.members.map(member => member.user._id.toString()).indexOf(req.session.user._id)
+            const index = data.members.indexOf(userId)
             if (index === -1) {
-                data.members.push({user: req.session.user._id})
+                data.members.push({user: userId})
                 user.communities.push(data._id)
                 user.save()
                 data.save()
@@ -426,7 +412,7 @@ exports.delete = async (req, res) => {
 
 exports.deleteAll = (req, res) => {
     try {
-        Post.deleteMany({})
+        Group.deleteMany({})
             .then(() => {
                 res.send({ message: 'All posts deleted' })
             })
@@ -438,5 +424,13 @@ exports.deleteAll = (req, res) => {
 }
 
 exports.seed = (req, res) => {
-    Post.insertMany(req.body)
+    const {careers} = req.body
+    const objs = careers.map(career => ({
+        title: career,
+        author: req.session.user._id
+    }))
+    Group.insertMany(objs)
+    .then(data => {
+        res.status(200).send({data, message: "Posted em!"})
+    })
 }

@@ -32,10 +32,6 @@ const PostSchema = new Schema({
         type: String,
         required: true
     },
-    career: {
-        type: String,
-        required: true
-    },
     tags: [{
         type: String,
     }],
@@ -56,7 +52,8 @@ const PostSchema = new Schema({
     dislikes: [MetricsSchema],
     group: {
         type: Schema.Types.ObjectId,
-        ref: 'Group'
+        ref: 'Group',
+        required: true
     }
 },
     { timestamps: true }

@@ -26,8 +26,10 @@ const GroupSchema = new Schema({
         type: String,
         required: true
     },
-    tagline: String,
-    career: String,
+    description: {
+        type: String,
+        default: ''
+    },
     author: {
         type: Schema.Types.ObjectId,
         ref: "User"
@@ -37,14 +39,9 @@ const GroupSchema = new Schema({
         ref: 'Post'
     }],
     members: [MemberSchema],
-    likes: [{
-        userId: String,
-        date: Date
-    }],
-    dislikes: [{
-        userId: String,
-        date: Date
-    }],
+    guidelines: [{
+        type: String
+}]
 },
     { timestamps: true }
     // ,opts

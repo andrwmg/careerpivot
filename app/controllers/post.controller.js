@@ -21,41 +21,34 @@ const sortByLikeDislikeDifference = (a, b) => {
   }
 };
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
   try {
-    const { title, body, career, tags, group, images } = req.body
+    const { title, body, group, images } = req.body
+    console.log(group)
     const userId = req.session.user._id
+
     const newPost = new Post(
       {
         title,
         body,
-        career,
-        tags,
         group,
         author: userId,
         images: images,
-        // comments: [],
-        // likes: [],
-        // dislikes: [],
       }
     );
     // Save Post in the database
-    newPost.save()
+    await newPost.save()
 
-    User.findByIdAndUpdate({ _id: req.session.user._id }, { $addToSet: { 'posts': newPost._id } })
-      .then(data => {
-        console.log(data)
-      })
-    // Group.findByIdAndUpdate({ _id: group }, { $addToSet: { 'posts': newPost._id } })
-    //   .then(data => {
-    //     console.log(data)
-    //   })
+    await Group.findByIdAndUpdate(group, {$push: {'posts': newPost._id}})
+
+    await User.findByIdAndUpdate(userId, { $push: { 'posts': newPost._id } })
+
     res.status(200).send({ data: newPost, message: 'Post created successfully' });
 
   } catch (e) {
     res.status(500).send({
       message:
-        e.message || "Some error occurred while creating the Post.",
+        e.message || "Error occurred while creating the post.",
     });
   }
 };
@@ -102,6 +95,7 @@ exports.findSome = (req, res) => {
   }
   if (career) {
     filter.career = career
+    console.log(career)
   }
   if (tags) {
     filter.tags = tags
@@ -129,7 +123,7 @@ exports.findOne = (req, res) => {
     Post.findById(postId)
       .populate('author')
       .populate('images')
-      .populate('career')
+      .populate('group')
       .populate({
         path: 'likes',
         populate: {
@@ -177,6 +171,7 @@ exports.trending = async (req, res) => {
     const posts = await Post.find(req.query)
       .populate('author')
       .populate('images')
+      .populate('group')
       .populate({
         path: 'likes',
         populate: {
@@ -209,6 +204,7 @@ exports.latest = async (req, res) => {
     const posts = await Post.find(req.query)
       .populate('author')
       .populate('images')
+      .populate('group')
       .populate({
         path: 'likes',
         populate: {

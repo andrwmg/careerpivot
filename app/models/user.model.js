@@ -81,8 +81,8 @@ const UserSchema = new Schema({
     notifications: [NotificationSchema],
     unreadNotifications: Number,
     career: {
-        type: String,
-        default: 'Product Design'
+        type: Schema.Types.ObjectId,
+        ref: 'Group'
     },
     groups: [{
         type: Schema.Types.ObjectId,
