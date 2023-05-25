@@ -35,7 +35,7 @@ exports.create = async (req, res) => {
       // const io = req.app.get('socketio')
 
     if (userId !== post.author._id) {
-      console.log(io)
+      // console.log(io)
       const user = await User.findById(post.author._id)
       const notification = { type: 'Comment', body: `${req.session.user.username} left a comment on your post`, from: userId }
       user.notifications.unshift(notification)

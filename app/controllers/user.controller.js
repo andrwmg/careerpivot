@@ -343,7 +343,7 @@ exports.updateUser = async (req, res) => {
 
         if (!career) {
             updatedUser['career'] = null
-        } else if ((user.career && career._id !== user.career._id)|| !user.career) {
+        } else if ((user.career && career._id !== user.career._id) || !user.career) {
                 updatedUser['career'] = career._id
             }
 

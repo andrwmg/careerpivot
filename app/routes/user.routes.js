@@ -33,7 +33,12 @@ router.put('/:userId', users.updateUser)
 // router.put('/messages/:fromId/:toId', isLoggedIn, users.sendMessage)
 
 router.post('/upload',upload.array('images'),(req,res)=>{
+  try{
     res.send(req.files.map(img => ({ filename: img.filename, url: img.path })))
+  } catch(e) {
+    console.log(e)
+    res.send(e)
+  }
   })
 
 router.get('/logout', users.logout)
