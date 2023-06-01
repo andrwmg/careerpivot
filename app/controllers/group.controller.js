@@ -52,9 +52,9 @@ exports.create = (req, res) => {
 exports.findAll = (req, res) => {
     try {
         Group.find()
-            .sort({title: 1})
+            .sort({ title: 1 })
             .then(data => {
-                res.status(200).send(data.map(d => {return {title: d.title, _id: d._id}}))
+                res.status(200).send(data.map(d => { return { title: d.title, _id: d._id } }))
             })
     } catch (e) {
         res.status(500).send({
@@ -115,33 +115,32 @@ exports.findSome = (req, res) => {
 }
 
 exports.join = async (req, res) => {
-    try{
-        const {groupId} = req.params
+    try {
+        const { groupId } = req.params
         const userId = req.session.user._id
 
         const user = await User.findById(userId)
-        .populate('groups')
-        Group.findOne({_id: groupId})
-        .populate()
-        .then(data => {
-            console.log('This is the group: ', data)
-            const index = data.members.indexOf(userId)
-            if (index === -1) {
-                data.members.push({user: userId})
-                user.communities.push(data._id)
-                user.save()
-                data.save()
-            return res.status(200).send({data, message: `Joined ${data.title}`})
-            } else {
-                data.members.splice(index, 1)
-                const filter = user.communities.filter(community => community._id !== data._id)
-                user.communities = filter
-                user.save()
-                data.save()
-            return res.status(200).send({data, message: `Left ${data.title}`})
-            }
-                    })
-    } catch (e){
+        Group.findOne({ _id: groupId })
+            .then(data => {
+                console.log('This is the group: ', data)
+                const userIds = data.members.map(member => member.user.toString())
+                const index = userIds.indexOf(userId)
+                if (index === -1) {
+                    data.members.push({ user: userId })
+                    user.groups.push(data._id)
+                    user.save()
+                    data.save()
+                    return res.status(200).send({ data, message: `Joined ${data.title} group` })
+                } else {
+                    data.members.splice(index, 1)
+                    const filter = user.groups.filter(group => group._id.toString() !== data._id.toString())
+                    user.groups = filter
+                    user.save()
+                    data.save()
+                    return res.status(200).send({ data, message: `Left ${data.title} group` })
+                }
+            })
+    } catch (e) {
         res.status(500).send({ message: "Error updating membership" })
     }
 }
@@ -221,14 +220,105 @@ exports.findPopular = async (req, res) => {
     }
 }
 
+exports.trending = async (req, res) => {
+    try {
+
+        const lastWeek = new Date(); // Create a new Date object for 7 days ago
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const groups = await Group.find()
+            .populate({
+                path: 'posts',
+                populate: {
+                    path: 'likes',
+                    populate: {
+                      path: 'user'
+                    }
+                  }
+            })
+
+        console.log('Groups before filtering:')
+
+        const filteredGroups = groups.map(group => {
+            group['likesFromPastWeek'] = 0
+            for (let post of group.posts) {
+                const likesFromPastWeek = post.likes.filter(like => {
+                    const likeDate = new Date(like.createdAt)
+                    return likeDate > lastWeek
+                })
+                group['likesFromPastWeek'] += likesFromPastWeek.length
+            }
+            // const newPosts = group.posts.map(post => {
+            //     const likesFromPastWeek = post.likes.filter(like => {
+            //         const likeDate = new Date(like.createdAt)
+            //         return likeDate > lastWeek
+            //     })
+            //     post['likesFromPastWeek'] = likesFromPastWeek
+            //     return post
+            // })
+            // for (let post in newPosts) {
+            //     group['likesFromPastWeek'] += post.likesFromPastWeek.length
+            // }
+            return group
+        })
+
+        console.log('Groups after filtering')
+
+        const sortedGroups = filteredGroups.sort((group1, group2) => {
+            return group2.likesFromPastWeek - group1.likesFromPastWeek;
+        }).filter((item, index)=> {
+            if (index < 10) {
+                return true
+            }
+        })
+
+        console.log(sortedGroups)
+
+        res.status(200).send({ data: sortedGroups, message: 'Got trending groups!' })
+    } catch (e) {
+        res.status(500).send({ message: 'Error loading trending groups' })
+    }
+}
+
+exports.latest = async (req, res) => {
+    try {
+        const groups = await Group.find()
+            .populate('image')
+            .populate({
+                path: 'posts',
+                    populate: {
+                        path: 'likes',
+                        populate: {
+                          path: 'user'
+                        }
+                      },
+                options: {
+                    sort: 'createdAt'
+                }
+            })
+
+        // const sortedGroups = groups.sort((group1, group2) => {
+        //     return group2.posts[0].createdAt - group1.posts[0].createdAt;
+        // });
+
+
+        res.status(200).send({ data: groups, message: 'Got latest posts!' })
+    } catch (e) {
+        res.status(500).send({ message: 'Error loading latest posts' })
+    }
+}
 
 exports.findOne = (req, res) => {
     try {
         const { groupId } = req.params;
         Group.findById(groupId)
-            .populate('author')
             .populate({
                 path: 'posts',
+                populate: {
+                    path: 'likes',
+                    populate: {
+                        path: 'user'
+                    }
+                },
                 options: {
                     limit: 10
                 }
@@ -236,17 +326,9 @@ exports.findOne = (req, res) => {
             .populate('image')
             .then(data => {
                 if (!data) {
-                    res.status(404).send({ message: "Could not find group" });
-                } else {
-                    for (let post of data.posts) {
-                        const userLikes = post.likes.map(l => l.userId)
-                        const userDislikes = post.dislikes.map(d => d.userId)
-                        post.likes = userLikes
-                        post.dislikes = userDislikes
-                    }
-
-                    res.send(data);
+                    return res.status(404).send({ message: "Could not find group" });
                 }
+                    res.send(data);
             })
     } catch (e) {
         res.status(500).send({ message: 'Error finding community' })
@@ -424,13 +506,13 @@ exports.deleteAll = (req, res) => {
 }
 
 exports.seed = (req, res) => {
-    const {careers} = req.body
+    const { careers } = req.body
     const objs = careers.map(career => ({
         title: career,
         author: req.session.user._id
     }))
     Group.insertMany(objs)
-    .then(data => {
-        res.status(200).send({data, message: "Posted em!"})
-    })
+        .then(data => {
+            res.status(200).send({ data, message: "Posted em!" })
+        })
 }

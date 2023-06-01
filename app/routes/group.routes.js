@@ -19,7 +19,11 @@ router.get('/titles', groups.findAll)
 
 router.get('/users/:userId', groups.findMyGroups)
 
-router.get('/career/:career', groups.findPopular)
+router.get('/latest', groups.latest)
+
+router.get('/popular', groups.findPopular)
+
+router.get('/trending', groups.trending)
 
 router.put('/:groupId/members', verifyToken, groups.join)
 
